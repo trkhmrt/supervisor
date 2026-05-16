@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { Service } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -40,6 +41,13 @@ export function generateId() {
 export function generateMeetLink() {
   const part = () => Math.random().toString(36).slice(2, 6);
   return `https://meet.google.com/${part()}-${part()}-${part()}`;
+}
+
+export function serviceLabelById(
+  services: Pick<Service, "id" | "name">[],
+  serviceTypeId: string
+): string {
+  return services.find((s) => s.id === serviceTypeId)?.name ?? serviceTypeId;
 }
 
 export function slugify(text: string): string {

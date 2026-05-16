@@ -2,17 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Calendar, User, Settings, LogOut, Video, Clock, CreditCard, ShieldCheck } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { useAppStore, useCurrentUser } from "@/lib/store";
-import { formatPrice, formatDate } from "@/lib/utils";
+import type { Service } from "@/lib/types";
+import { formatPrice, formatDate, serviceLabelById } from "@/lib/utils";
+import { useRemoteServices } from "@/hooks/useRemoteServices";
+import { AddSupervisorCard } from "@/components/panel/AddSupervisorCard";
 
 export default function PanelimPage() {
   const router = useRouter();
   const user = useCurrentUser();
   const logout = useAppStore((s) => s.logout);
+  const storeServices = useAppStore((s) => s.services);
+  const apiServices = useRemoteServices(storeServices);
+  const servicesForLabels = useMemo(() => {
+    const m = new Map(storeServices.map((s) => [s.id, s]));
+    for (const s of apiServices) m.set(s.id, s);
+    return Array.from(m.values());
+  }, [storeServices, apiServices]);
   const appointments = useAppStore((s) =>
     s.appointments
       .filter((a) =>
@@ -84,6 +94,14 @@ export default function PanelimPage() {
         </div>
       </section>
 
+      <section className="py-12 bg-clinical-light border-y border-clinical-border">
+        <div className="container-wide max-w-3xl">
+          <Reveal>
+            <AddSupervisorCard user={user} />
+          </Reveal>
+        </div>
+      </section>
+
       <section className="py-24 bg-white">
         <div className="container-wide">
           <div className="grid lg:grid-cols-12 gap-16">
@@ -109,7 +127,12 @@ export default function PanelimPage() {
                 ) : (
                   <div className="space-y-4">
                     {upcoming.map((a) => (
-                      <AppointmentRow key={a.id} appointment={a} userRole={user.role} />
+                      <AppointmentRow
+                        key={a.id}
+                        appointment={a}
+                        userRole={user.role}
+                        servicesForLabels={servicesForLabels}
+                      />
                     ))}
                   </div>
                 )}
@@ -119,7 +142,12 @@ export default function PanelimPage() {
                     <h2 className="h2-premium text-2xl mb-10">Geçmiş Seanslar</h2>
                     <div className="space-y-4 opacity-70">
                       {past.map((a) => (
-                        <AppointmentRow key={a.id} appointment={a} userRole={user.role} />
+                        <AppointmentRow
+                          key={a.id}
+                          appointment={a}
+                          userRole={user.role}
+                          servicesForLabels={servicesForLabels}
+                        />
                       ))}
                     </div>
                   </div>
@@ -169,7 +197,15 @@ function StatCard({ icon: Icon, label, value }: { icon: any; label: string; valu
   );
 }
 
-function AppointmentRow({ appointment, userRole }: { appointment: any; userRole: string }) {
+function AppointmentRow({
+  appointment,
+  userRole,
+  servicesForLabels,
+}: {
+  appointment: any;
+  userRole: string;
+  servicesForLabels: Service[];
+}) {
   const cancel = useAppStore((s) => s.cancelAppointment);
 
   const statusLabel: Record<string, string> = {
@@ -196,10 +232,7 @@ function AppointmentRow({ appointment, userRole }: { appointment: any; userRole:
             {statusLabel[appointment.status]}
           </span>
           <span className="text-[10px] font-bold text-clinical-muted uppercase tracking-widest">
-            {appointment.serviceType === "individual" && "Bireysel"}
-            {appointment.serviceType === "group" && "Grup"}
-            {appointment.serviceType === "peer" && "Akran"}
-            {appointment.serviceType === "simulation" && "Simülasyon"}
+            {serviceLabelById(servicesForLabels, appointment.serviceType)}
           </span>
         </div>
         <h4 className="text-lg font-bold text-navy-900 mb-2">

@@ -10,7 +10,6 @@ import type {
   NewsletterSubscriber,
   Review,
   Service,
-  ServiceType,
   SiteSettings,
   Supervisor,
   SupervisorInvite,
@@ -82,7 +81,7 @@ interface AppState {
   deleteSupervisor: (id: string) => void;
 
   upsertService: (service: Service) => void;
-  toggleService: (id: ServiceType) => void;
+  toggleService: (id: string) => void;
 
   upsertBlogPost: (post: BlogPost) => void;
   deleteBlogPost: (id: string) => void;

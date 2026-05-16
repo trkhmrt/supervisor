@@ -7,10 +7,11 @@ import { Star, ArrowUpRight, Search, Users, CheckCircle2 } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { useAppStore } from "@/lib/store";
-import { formatPrice } from "@/lib/utils";
+import { useRemoteSupervisors } from "@/hooks/useRemoteSupervisors";
 
 export default function SupervisorsPage() {
-  const supervisors = useAppStore((s) => s.supervisors);
+  const fallback = useAppStore((s) => s.supervisors);
+  const supervisors = useRemoteSupervisors(fallback);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("all");
 

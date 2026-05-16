@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound, useParams } from "next/navigation";
@@ -20,17 +21,65 @@ import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Revea
 import { useAppStore } from "@/lib/store";
 import { formatPrice } from "@/lib/utils";
 import { BookingPanel } from "@/components/site/BookingPanel";
+import type { Service, Supervisor } from "@/lib/types";
 
 export default function ServiceDetailPage() {
   const params = useParams<{ slug: string }>();
-  const service = useAppStore((s) => s.services.find((x) => x.slug === params.slug));
-  const featuredSupervisor = useAppStore((s) =>
-    s.supervisors.find((x) => x.id === "sup-1")
+  const slug = params.slug;
+  const serviceFallback = useAppStore((s) => s.services.find((x) => x.slug === slug));
+  const supervisorFallback = useAppStore(
+    (s) => s.supervisors.find((x) => x.id === "sup-1") ?? s.supervisors[0] ?? null
   );
 
-  if (!service) notFound();
+  const serviceRef = useRef(serviceFallback);
+  serviceRef.current = serviceFallback;
+  const supervisorFallbackRef = useRef(supervisorFallback);
+  supervisorFallbackRef.current = supervisorFallback;
 
-  const isIndividual = service.id === "individual";
+  const [service, setService] = useState<Service | undefined>(undefined);
+  const [loadDone, setLoadDone] = useState(false);
+  const [featuredSupervisor, setFeaturedSupervisor] = useState<Supervisor | null>(supervisorFallback);
+
+  useEffect(() => {
+    setLoadDone(false);
+    fetch(`/api/services/by-slug/${encodeURIComponent(slug)}`)
+      .then(async (r) => {
+        if (r.ok) return (await r.json()) as Service;
+        return null;
+      })
+      .then((data) => {
+        if (data) setService(data);
+        else setService(serviceRef.current);
+        setLoadDone(true);
+      })
+      .catch(() => {
+        setService(serviceRef.current);
+        setLoadDone(true);
+      });
+  }, [slug]);
+
+  useEffect(() => {
+    fetch("/api/supervisors")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((list: Supervisor[]) => {
+        setFeaturedSupervisor(list[0] ?? supervisorFallbackRef.current);
+      })
+      .catch(() => {
+        setFeaturedSupervisor(supervisorFallbackRef.current);
+      });
+  }, []);
+
+  if (loadDone && !service) notFound();
+  if (!service) {
+    return (
+      <SiteShell>
+        <div className="container-wide pt-40 pb-24 text-center text-clinical-muted text-sm">Yükleniyor…</div>
+      </SiteShell>
+    );
+  }
+
+  const isIndividual =
+    service.slug === "bireysel-supervizyon" || service.id === "individual";
 
   return (
     <SiteShell>
@@ -127,7 +176,7 @@ export default function ServiceDetailPage() {
             <div className="lg:col-span-5">
               <div id="randevu" className="sticky top-32">
                 {isIndividual && featuredSupervisor ? (
-                  <AbdullatifOrderCard supervisorId={featuredSupervisor.id} />
+                  <FeaturedSupervisorCard supervisor={featuredSupervisor} serviceDuration={service.duration} />
                 ) : (
                   <div className="card-premium">
                     <h3 className="h3-premium mb-6">Randevu Oluştur</h3>
@@ -168,7 +217,12 @@ export default function ServiceDetailPage() {
             
             <Reveal delay={0.3}>
               <div className="max-w-4xl mx-auto">
-                <BookingPanel supervisorId={featuredSupervisor.id} serviceType="individual" />
+                <BookingPanel
+                  supervisorId={featuredSupervisor.id}
+                  serviceType={service.id}
+                  supervisor={featuredSupervisor}
+                  service={service}
+                />
               </div>
             </Reveal>
           </div>
@@ -190,10 +244,13 @@ function Step({ number, title, desc }: { number: string; title: string; desc: st
   );
 }
 
-function AbdullatifOrderCard({ supervisorId }: { supervisorId: string }) {
-  const supervisor = useAppStore((s) => s.supervisors.find((x) => x.id === supervisorId));
-  if (!supervisor) return null;
-  
+function FeaturedSupervisorCard({
+  supervisor,
+  serviceDuration,
+}: {
+  supervisor: Supervisor;
+  serviceDuration: number;
+}) {
   return (
     <div className="card-premium card-flat-hover p-0 overflow-hidden shadow-2xl">
       <div className="relative h-44 sm:h-auto sm:aspect-square">
@@ -206,16 +263,16 @@ function AbdullatifOrderCard({ supervisorId }: { supervisorId: string }) {
       <div className="p-5 sm:p-8">
         <div className="text-xs font-bold text-accent-gold uppercase tracking-widest mb-2">{supervisor.title}</div>
         <h3 className="h3-premium mb-4 sm:mb-6">{supervisor.fullName}</h3>
-        
+
         <div className="mb-6 space-y-3 sm:mb-8 sm:space-y-4">
-           <div className="flex justify-between border-b border-clinical-border pb-3 text-sm sm:pb-4">
-              <span className="text-clinical-muted">Seans Ücreti</span>
-              <span className="font-bold text-navy-900">{formatPrice(supervisor.pricePerSession)}</span>
-           </div>
-           <div className="flex justify-between border-b border-clinical-border pb-3 text-sm sm:pb-4">
-              <span className="text-clinical-muted">Seans Süresi</span>
-              <span className="font-bold text-navy-900">50 Dakika</span>
-           </div>
+          <div className="flex justify-between border-b border-clinical-border pb-3 text-sm sm:pb-4">
+            <span className="text-clinical-muted">Seans Ücreti</span>
+            <span className="font-bold text-navy-900">{formatPrice(supervisor.pricePerSession)}</span>
+          </div>
+          <div className="flex justify-between border-b border-clinical-border pb-3 text-sm sm:pb-4">
+            <span className="text-clinical-muted">Seans Süresi</span>
+            <span className="font-bold text-navy-900">{serviceDuration} Dakika</span>
+          </div>
         </div>
 
         <Link href={`/supervizorler/${supervisor.id}`} className="btn-navy w-full">

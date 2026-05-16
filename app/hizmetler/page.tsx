@@ -7,9 +7,11 @@ import { ServiceIcon } from "@/components/site/ServiceIcon";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { useAppStore } from "@/lib/store";
 import { formatPrice } from "@/lib/utils";
+import { useRemoteServices } from "@/hooks/useRemoteServices";
 
 export default function HizmetlerPage() {
-  const services = useAppStore((s) => s.services.filter((x) => x.active));
+  const fallback = useAppStore((s) => s.services);
+  const services = useRemoteServices(fallback);
 
   return (
     <SiteShell>

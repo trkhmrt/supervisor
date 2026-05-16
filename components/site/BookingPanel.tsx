@@ -12,17 +12,22 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { useAppStore, useCurrentUser } from "@/lib/store";
-import type { ServiceType } from "@/lib/types";
+import type { Service, Supervisor } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 
 export function BookingPanel({
   supervisorId,
   serviceType = "individual",
+  supervisor: supervisorOverride,
+  service: serviceOverride,
 }: {
   supervisorId: string;
-  serviceType?: ServiceType;
+  serviceType?: string;
+  supervisor?: Supervisor | null;
+  service?: Service | null;
 }) {
-  const supervisor = useAppStore((s) => s.supervisors.find((x) => x.id === supervisorId));
+  const supervisorFromStore = useAppStore((s) => s.supervisors.find((x) => x.id === supervisorId));
+  const supervisor = supervisorOverride ?? supervisorFromStore;
   const services = useAppStore((s) => s.services);
   const user = useCurrentUser();
   const createAppointment = useAppStore((s) => s.createAppointment);
@@ -34,7 +39,7 @@ export function BookingPanel({
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [weekIndex, setWeekIndex] = useState(0);
 
-  const service = services.find((s) => s.id === serviceType);
+  const service = serviceOverride ?? services.find((s) => s.id === serviceType);
 
   const groupedByDate = useMemo(() => {
     if (!supervisor) return {};

@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  supervisee
+  supervisor
+  admin
+}
+
+enum AppointmentStatus {
+  pending_payment
+  confirmed
+  completed
+  cancelled
+  rescheduled
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+}
+
+model User {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  password         String?
+  fullName         String
+  role             UserRole
+  title            String?
+  emailVerified    Boolean        @default(false)
+  profession       String?
+  experienceYears  Int?
+  license          String?
+  createdAt        DateTime       @default(now())
+  supervisor       Supervisor?
+  appointments     Appointment[]  @relation("AppointmentSupervisee")
+}
+
+model Supervisor {
+  id                String             @id @default(cuid())
+  userId            String?            @unique
+  user              User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fullName          String
+  title             String
+  photo             String
+  bio               String
+  pricePerSession   Int
+  currency          String             @default("TRY")
+  rating            Float              @default(0)
+  reviewCount       Int                @default(0)
+  yearsExperience   Int                @default(0)
+  license           String
+  expertise         String[]
+  languages         String[]
+  approaches        String[]
+  slots             AvailabilitySlot[]
+  appointments      Appointment[]
+  reviews           Review[]
+}
+
+model AvailabilitySlot {
+  id           String     @id @default(cuid())
+  supervisorId String
+  supervisor   Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  date         String
+  startTime    String
+  endTime      String
+  isBooked     Boolean    @default(false)
+
+  @@index([supervisorId, date])
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  supervisorId     String
+  supervisor       Supervisor        @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  supervisorName   String
+  superviseeId     String
+  supervisee       User              @relation("AppointmentSupervisee", fields: [superviseeId], references: [id], onDelete: Cascade)
+  superviseeName   String
+  superviseeEmail  String
+  serviceType      String
+  date             String
+  startTime        String
+  endTime          String
+  status           AppointmentStatus @default(pending_payment)
+  meetLink         String?
+  paymentApproved  Boolean           @default(false)
+  amount           Int
+  notes            String?
+  createdAt        DateTime          @default(now())
+
+  @@index([supervisorId])
+  @@index([superviseeId])
+  @@index([date])
+}
+
+model Service {
+  id               String  @id @default(cuid())
+  slug             String  @unique
+  name             String
+  shortDescription String
+  description      String
+  features         String[]
+  icon             String
+  price            Int
+  duration         Int
+  active           Boolean @default(true)
+}
+
+model BlogPost {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  excerpt      String
+  content      String
+  cover        String
+  author       String
+  category     String
+  tags         String[]
+  publishedAt  String
+  readingTime  Int
+  published    Boolean  @default(false)
+}
+
+model Review {
+  id            String     @id @default(cuid())
+  supervisorId  String
+  supervisor    Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  authorName    String
+  rating        Int
+  comment       String
+  createdAt     String
+
+  @@index([supervisorId])
+}
+
+model SupervisorInvite {
+  id         String       @id @default(cuid())
+  token      String       @unique
+  email      String
+  invitedAt  String
+  acceptedAt String?
+  status     InviteStatus @default(pending)
+}
+
+model NewsletterSubscriber {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  subscribedAt  String
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  createdAt String
+  read      Boolean  @default(false)
+}
+
+model SiteSettings {
+  id       String @id @default("default")
+  siteName String
+  tagline  String
+  email    String
+  phone    String
+  address  String
+  socials  Json   @default("{}")
+}

@@ -19,10 +19,14 @@ import { useAppStore } from "@/lib/store";
 import { formatPrice } from "@/lib/utils";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 import { useEffect, useState } from "react";
+import { useRemoteServices } from "@/hooks/useRemoteServices";
+import { useRemoteSupervisors } from "@/hooks/useRemoteSupervisors";
 
 export default function HomePage() {
-  const services = useAppStore((s) => s.services.filter((x) => x.active));
-  const supervisors = useAppStore((s) => s.supervisors.slice(0, 3));
+  const servicesFallback = useAppStore((s) => s.services);
+  const services = useRemoteServices(servicesFallback);
+  const supervisorsFallback = useAppStore((s) => s.supervisors);
+  const supervisors = useRemoteSupervisors(supervisorsFallback).slice(0, 3);
   const posts = useAppStore((s) => s.blogPosts.filter((p) => p.published).slice(0, 3));
   const heroWords = ["Güvenle", "Derinlikle", "Etikle"];
   const floatingKeywords = ["Vaka Analizi", "Etik Çerçeve", "Canlı Geri Bildirim", "Sürekli Gelişim"];

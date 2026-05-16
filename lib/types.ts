@@ -16,7 +16,7 @@ export interface User {
 
 export interface Supervisor {
   id: string;
-  userId: string;
+  userId?: string;
   fullName: string;
   title: string;
   photo: string;
@@ -56,7 +56,7 @@ export interface Appointment {
   superviseeId: string;
   superviseeName: string;
   superviseeEmail: string;
-  serviceType: ServiceType;
+  serviceType: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -75,7 +75,7 @@ export type ServiceType =
   | "simulation";
 
 export interface Service {
-  id: ServiceType;
+  id: string;
   slug: string;
   name: string;
   shortDescription: string;

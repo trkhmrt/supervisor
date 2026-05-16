@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, notFound } from "next/navigation";
@@ -20,13 +21,64 @@ import { BookingPanel } from "@/components/site/BookingPanel";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { useAppStore } from "@/lib/store";
 import { formatPrice, formatDate } from "@/lib/utils";
+import type { Service, Supervisor } from "@/lib/types";
 
 export default function SupervisorProfilePage() {
   const params = useParams<{ id: string }>();
-  const supervisor = useAppStore((s) => s.supervisors.find((x) => x.id === params.id));
-  const reviews = useAppStore((s) => s.reviews.filter((r) => r.supervisorId === params.id));
+  const id = params.id;
+  const fallback = useAppStore((s) => s.supervisors.find((x) => x.id === id));
+  const reviews = useAppStore((s) => s.reviews.filter((r) => r.supervisorId === id));
+  const servicesFallback = useAppStore((s) => s.services);
 
-  if (!supervisor) notFound();
+  const fallbackRef = useRef(fallback);
+  fallbackRef.current = fallback;
+  const servicesFallbackRef = useRef(servicesFallback);
+  servicesFallbackRef.current = servicesFallback;
+
+  const [supervisor, setSupervisor] = useState<Supervisor | undefined>(fallback);
+  const [loadDone, setLoadDone] = useState(false);
+  const [bookingService, setBookingService] = useState<Service | undefined>(undefined);
+
+  useEffect(() => {
+    setLoadDone(false);
+    fetch(`/api/supervisors/${id}`)
+      .then(async (r) => {
+        if (r.ok) return (await r.json()) as Supervisor;
+        return null;
+      })
+      .then((data) => {
+        if (data) setSupervisor(data);
+        else setSupervisor(fallbackRef.current);
+        setLoadDone(true);
+      })
+      .catch(() => {
+        setSupervisor(fallbackRef.current);
+        setLoadDone(true);
+      });
+  }, [id]);
+
+  useEffect(() => {
+    fetch("/api/services")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((list: Service[]) => {
+        const b = list.find((s) => s.slug === "bireysel-supervizyon") ?? list[0];
+        setBookingService(b);
+      })
+      .catch(() => {
+        const fb = servicesFallbackRef.current;
+        const b = fb.find((s) => s.slug === "bireysel-supervizyon") ?? fb.find((s) => s.active);
+        setBookingService(b);
+      });
+  }, []);
+
+  if (loadDone && !supervisor) notFound();
+  if (!supervisor) {
+    return (
+      <SiteShell>
+        <div className="container-wide pt-40 pb-24 text-center text-clinical-muted text-sm">Yükleniyor…</div>
+      </SiteShell>
+    );
+  }
 
   return (
     <SiteShell>
@@ -170,7 +222,12 @@ export default function SupervisorProfilePage() {
           
           <Reveal delay={0.3}>
             <div className="max-w-4xl mx-auto">
-              <BookingPanel supervisorId={supervisor.id} serviceType="individual" />
+              <BookingPanel
+                supervisorId={supervisor.id}
+                serviceType={bookingService?.id ?? "individual"}
+                supervisor={supervisor}
+                service={bookingService ?? null}
+              />
             </div>
           </Reveal>
         </div>
