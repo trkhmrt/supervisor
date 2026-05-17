@@ -1,30 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Service } from "@/lib/types";
 
-/** Aktif hizmetler (API); hata durumunda yalnızca aktif olan `fallback` öğeleri. */
-export function useRemoteServices(fallback: Service[]) {
-  const fallbackRef = useRef(fallback);
-  fallbackRef.current = fallback;
-  const [services, setServices] = useState<Service[]>(() =>
-    fallbackRef.current.filter((s) => s.active)
-  );
+export type RemoteFetchState<T> = {
+  data: T;
+  loading: boolean;
+  error: string | null;
+  reload: () => void;
+};
 
-  useEffect(() => {
+/** Aktif hizmetler — yalnızca `/api/services` (veritabanı). Mock/store kullanılmaz. */
+export function useRemoteServices(): RemoteFetchState<Service[]> {
+  const [data, setData] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     let cancelled = false;
     fetch("/api/services")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data: Service[]) => {
-        if (!cancelled) setServices(data);
+      .then(async (r) => {
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(typeof j.error === "string" ? j.error : "Hizmetler yüklenemedi");
+        }
+        return r.json() as Promise<Service[]>;
       })
-      .catch(() => {
-        if (!cancelled) setServices(fallbackRef.current.filter((s) => s.active));
+      .then((list) => {
+        if (!cancelled) setData(list);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setData([]);
+          setError(e instanceof Error ? e.message : "Hizmetler yüklenemedi");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return services;
+  useEffect(() => {
+    const cleanup = load();
+    return cleanup;
+  }, [load]);
+
+  return { data, loading, error, reload: load };
 }

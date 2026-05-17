@@ -1,4 +1,6 @@
-export type UserRole = "supervisee" | "supervisor" | "admin";
+export type UserRole = "user" | "supervisor" | "admin";
+
+export type AuthSource = "supabase" | "adminpanel";
 
 export interface User {
   id: string;
@@ -12,7 +14,16 @@ export interface User {
   profession?: string;
   experienceYears?: number;
   license?: string;
+  isSuperAdmin?: boolean;
+  scopes?: string[];
+  authSource?: AuthSource;
 }
+
+/** Giriş sonrası API (/api/auth/me, /api/auth/sync) dönüş tipi */
+export type SessionUser = User & {
+  scopes: string[];
+  authSource: AuthSource;
+};
 
 export interface Supervisor {
   id: string;
@@ -53,7 +64,7 @@ export interface Appointment {
   id: string;
   supervisorId: string;
   supervisorName: string;
-  superviseeId: string;
+  superviseeId?: string;
   superviseeName: string;
   superviseeEmail: string;
   serviceType: string;

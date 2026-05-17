@@ -13,12 +13,13 @@ import {
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAppStore } from "@/lib/store";
+import { useRemoteSupervisors } from "@/hooks/useRemoteSupervisors";
 import { formatPrice, formatDate } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const appointments = useAppStore((s) => s.appointments);
   const users = useAppStore((s) => s.users);
-  const supervisors = useAppStore((s) => s.supervisors);
+  const { data: supervisors } = useRemoteSupervisors();
   const contactMessages = useAppStore((s) => s.contactMessages);
 
   const totalRevenue = appointments

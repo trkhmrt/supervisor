@@ -1,28 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Supervisor } from "@/lib/types";
 
-/** Veritabanından süpervizör listesi; hata veya 503 durumunda `fallback` kullanılır. */
-export function useRemoteSupervisors(fallback: Supervisor[]) {
-  const fallbackRef = useRef(fallback);
-  fallbackRef.current = fallback;
-  const [supervisors, setSupervisors] = useState<Supervisor[]>(() => fallbackRef.current);
+export type RemoteFetchState<T> = {
+  data: T;
+  loading: boolean;
+  error: string | null;
+  reload: () => void;
+};
 
-  useEffect(() => {
+/** Süpervizör listesi — yalnızca `/api/supervisors` (veritabanı). Mock/store kullanılmaz. */
+export function useRemoteSupervisors(): RemoteFetchState<Supervisor[]> {
+  const [data, setData] = useState<Supervisor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     let cancelled = false;
     fetch("/api/supervisors")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data: Supervisor[]) => {
-        if (!cancelled) setSupervisors(data);
+      .then(async (r) => {
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(typeof j.error === "string" ? j.error : "Süpervizörler yüklenemedi");
+        }
+        return r.json() as Promise<Supervisor[]>;
       })
-      .catch(() => {
-        if (!cancelled) setSupervisors(fallbackRef.current);
+      .then((list) => {
+        if (!cancelled) setData(list);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setData([]);
+          setError(e instanceof Error ? e.message : "Süpervizörler yüklenemedi");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return supervisors;
+  useEffect(() => {
+    const cleanup = load();
+    return cleanup;
+  }, [load]);
+
+  return { data, loading, error, reload: load };
 }

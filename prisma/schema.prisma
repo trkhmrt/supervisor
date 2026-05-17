@@ -3,12 +3,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
-  supervisee
+  user
   supervisor
   admin
 }
@@ -28,19 +29,37 @@ enum InviteStatus {
 }
 
 model User {
-  id               String         @id @default(cuid())
-  email            String         @unique
+  id               String           @id @default(cuid())
+  email            String           @unique
   password         String?
   fullName         String
   role             UserRole
+  isSuperAdmin     Boolean          @default(false)
   title            String?
-  emailVerified    Boolean        @default(false)
+  emailVerified    Boolean          @default(false)
   profession       String?
   experienceYears  Int?
   license          String?
-  createdAt        DateTime       @default(now())
+  createdAt        DateTime         @default(now())
   supervisor       Supervisor?
-  appointments     Appointment[]  @relation("AppointmentSupervisee")
+  appointments     Appointment[]    @relation("AppointmentSupervisee")
+  permissions      UserPermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String
+  users       UserPermission[]
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
 }
 
 model Supervisor {
@@ -82,8 +101,8 @@ model Appointment {
   supervisorId     String
   supervisor       Supervisor        @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
   supervisorName   String
-  superviseeId     String
-  supervisee       User              @relation("AppointmentSupervisee", fields: [superviseeId], references: [id], onDelete: Cascade)
+  superviseeId     String?
+  supervisee       User?             @relation("AppointmentSupervisee", fields: [superviseeId], references: [id], onDelete: SetNull)
   superviseeName   String
   superviseeEmail  String
   serviceType      String

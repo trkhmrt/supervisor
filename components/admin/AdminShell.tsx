@@ -19,6 +19,7 @@ import {
   Home,
   ShieldCheck,
 } from "lucide-react";
+import { signOut } from "@/lib/auth/client";
 import { useAppStore, useCurrentUser } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ const nav = [
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const user = useCurrentUser();
+  const authReady = useAppStore((s) => s.authReady);
   const logout = useAppStore((s) => s.logout);
   const settings = useAppStore((s) => s.settings);
   const router = useRouter();
@@ -42,13 +44,22 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (!authReady) return;
     if (!user) router.push("/giris");
     else if (user.role !== "admin") router.push("/panelim");
-  }, [user, router]);
+  }, [user, authReady, router]);
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  if (!authReady) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-clinical-light">
+        <p className="text-sm text-clinical-muted">Yükleniyor…</p>
+      </div>
+    );
+  }
 
   if (!user || user.role !== "admin") return null;
 
@@ -103,8 +114,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </Link>
         <button
           onClick={() => {
-            logout();
-            router.push("/");
+            void signOut().then(() => {
+              logout();
+              router.push("/");
+            });
           }}
           className="flex w-full items-center gap-3 rounded-premium px-4 py-3 text-xs font-bold text-black/80 transition-all hover:bg-black/10"
         >

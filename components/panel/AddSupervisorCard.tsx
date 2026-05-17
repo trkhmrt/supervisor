@@ -3,11 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { UserPlus, Loader2, Check } from "lucide-react";
-import { useAppStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 
 export function AddSupervisorCard({ user }: { user: User }) {
-  const upsertSupervisor = useAppStore((s) => s.upsertSupervisor);
   const [form, setForm] = useState({
     fullName: "",
     title: "",
@@ -52,8 +50,7 @@ export function AddSupervisorCard({ user }: { user: User }) {
       if (!r.ok) {
         throw new Error(typeof j.error === "string" ? j.error : "Kayıt başarısız");
       }
-      upsertSupervisor(j);
-      setMsg({ type: "ok", text: "Süpervizör kaydedildi; sitede listelenir." });
+      setMsg({ type: "ok", text: "Süpervizör veritabanına kaydedildi; sitede listelenir." });
       setForm({
         fullName: "",
         title: "",

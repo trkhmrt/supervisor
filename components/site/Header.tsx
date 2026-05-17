@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X, LogOut, UserCircle, ShieldCheck, ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { signOut } from "@/lib/auth/client";
 import { useAppStore, useCurrentUser } from "@/lib/store";
+import type { Service } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -16,7 +18,7 @@ const nav = [
   { href: "/iletisim", label: "İletişim" },
 ];
 
-export function Header() {
+export function Header({ services = [] }: { services?: Service[] }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
@@ -25,7 +27,11 @@ export function Header() {
   const user = useCurrentUser();
   const logout = useAppStore((s) => s.logout);
   const siteName = useAppStore((s) => s.settings.siteName);
-  const services = useAppStore((s) => s.services.filter((x) => x.active));
+
+  async function handleLogout() {
+    await signOut();
+    logout();
+  }
 
   useEffect(() => {
     const handle = () => setScrolled(window.scrollY > 20);
@@ -158,7 +164,7 @@ export function Header() {
                   {user.fullName.split(" ")[0]}
                 </Link>
                 <button 
-                  onClick={logout} 
+                  onClick={() => void handleLogout()} 
                   className="text-xs font-bold uppercase tracking-widest text-clinical-muted hover:text-black transition-colors"
                 >
                   Çıkış

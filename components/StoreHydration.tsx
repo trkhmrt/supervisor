@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 export function StoreHydration({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
@@ -26,5 +27,5 @@ export function StoreHydration({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <AuthProvider>{children}</AuthProvider>;
 }

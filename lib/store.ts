@@ -21,9 +21,7 @@ import {
   CONTACT_MESSAGES,
   NEWSLETTER,
   REVIEWS,
-  SERVICES,
   SITE_SETTINGS,
-  SUPERVISORS,
   SUPERVISOR_INVITES,
   USERS,
 } from "./mockData";
@@ -41,8 +39,12 @@ interface AppState {
   contactMessages: ContactMessage[];
   settings: SiteSettings;
   currentUserId: string | null;
+  /** Supabase oturum kontrolü tamamlandı mı (yanlış /giris yönlendirmesini önler). */
+  authReady: boolean;
 
   login: (email: string, password: string) => User | null;
+  setAuthUser: (user: User) => void;
+  setAuthReady: (ready: boolean) => void;
   logout: () => void;
   registerSupervisee: (data: {
     email: string;
@@ -102,9 +104,9 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       users: USERS,
-      supervisors: SUPERVISORS,
+      supervisors: [],
       appointments: APPOINTMENTS,
-      services: SERVICES,
+      services: [],
       blogPosts: BLOG_POSTS,
       reviews: REVIEWS,
       invites: SUPERVISOR_INVITES,
@@ -112,6 +114,7 @@ export const useAppStore = create<AppState>()(
       contactMessages: CONTACT_MESSAGES,
       settings: SITE_SETTINGS,
       currentUserId: null,
+      authReady: false,
 
       login: (email, password) => {
         const user = get().users.find(
@@ -124,14 +127,24 @@ export const useAppStore = create<AppState>()(
         return null;
       },
 
-      logout: () => set({ currentUserId: null }),
+      setAuthUser: (user) =>
+        set((s) => {
+          const idx = s.users.findIndex((u) => u.id === user.id);
+          const users =
+            idx >= 0 ? s.users.map((u, i) => (i === idx ? user : u)) : [...s.users, user];
+          return { users, currentUserId: user.id, authReady: true };
+        }),
+
+      setAuthReady: (ready) => set({ authReady: ready }),
+
+      logout: () => set({ currentUserId: null, authReady: true }),
 
       registerSupervisee: (data) => {
         const user: User = {
           id: generateId(),
           email: data.email,
           fullName: data.fullName,
-          role: "supervisee",
+          role: "user",
           emailVerified: false,
           profession: data.profession,
           experienceYears: data.experienceYears,
@@ -387,9 +400,9 @@ export const useAppStore = create<AppState>()(
       resetAll: () =>
         set({
           users: USERS,
-          supervisors: SUPERVISORS,
+          supervisors: [],
           appointments: APPOINTMENTS,
-          services: SERVICES,
+          services: [],
           blogPosts: BLOG_POSTS,
           reviews: REVIEWS,
           invites: SUPERVISOR_INVITES,
@@ -402,8 +415,26 @@ export const useAppStore = create<AppState>()(
     {
       name: "supervizyon-store",
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
       skipHydration: true,
+      partialize: (state) => ({
+        users: state.users,
+        appointments: state.appointments,
+        blogPosts: state.blogPosts,
+        reviews: state.reviews,
+        invites: state.invites,
+        newsletter: state.newsletter,
+        contactMessages: state.contactMessages,
+        settings: state.settings,
+        currentUserId: state.currentUserId,
+      }),
+      migrate: (persisted, fromVersion) => {
+        const s = persisted as Record<string, unknown>;
+        if (fromVersion < 2) {
+          return { ...s, supervisors: [], services: [] };
+        }
+        return s;
+      },
     }
   )
 );

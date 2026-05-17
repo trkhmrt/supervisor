@@ -1,6 +1,6 @@
 import type { UserRole } from "@/lib/types";
 
-const ALLOWED: UserRole[] = ["supervisee", "supervisor", "admin"];
+const ALLOWED: UserRole[] = ["user", "supervisor", "admin"];
 
 /** İstemci panel oturumu (Zustand); gerçek oturum için ileride cookie/JWT ile değiştirin. */
 export function parsePanelUser(req: Request): { userId: string; role: UserRole } | null {

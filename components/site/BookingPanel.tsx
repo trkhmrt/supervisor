@@ -6,12 +6,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   CreditCard,
   Check,
-  LogIn,
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  Loader2,
+  Mail,
 } from "lucide-react";
-import { useAppStore, useCurrentUser } from "@/lib/store";
+import type { Appointment } from "@/lib/types";
+import { useCurrentUser } from "@/lib/store";
 import type { Service, Supervisor } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 
@@ -26,20 +28,64 @@ export function BookingPanel({
   supervisor?: Supervisor | null;
   service?: Service | null;
 }) {
-  const supervisorFromStore = useAppStore((s) => s.supervisors.find((x) => x.id === supervisorId));
-  const supervisor = supervisorOverride ?? supervisorFromStore;
-  const services = useAppStore((s) => s.services);
   const user = useCurrentUser();
-  const createAppointment = useAppStore((s) => s.createAppointment);
+
+  const [supervisor, setSupervisor] = useState<Supervisor | null>(supervisorOverride ?? null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [remoteReady, setRemoteReady] = useState(false);
+
+  useEffect(() => {
+    if (supervisorOverride) {
+      setSupervisor(supervisorOverride);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/supervisors/${supervisorId}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: Supervisor) => {
+        if (!cancelled) setSupervisor(data);
+      })
+      .catch(() => {
+        if (!cancelled) setSupervisor(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supervisorId, supervisorOverride]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/services")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((list: Service[]) => {
+        if (!cancelled) setServices(list);
+      })
+      .catch(() => {
+        if (!cancelled) setServices([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRemoteReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [step, setStep] = useState<"select" | "confirm" | "done">("select");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null);
   const [notes, setNotes] = useState("");
-  const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [weekIndex, setWeekIndex] = useState(0);
 
-  const service = serviceOverride ?? services.find((s) => s.id === serviceType);
+  const service =
+    serviceOverride ??
+    services.find((s) => s.id === serviceType) ??
+    services.find((s) => s.slug === serviceType);
 
   const groupedByDate = useMemo(() => {
     if (!supervisor) return {};
@@ -69,6 +115,11 @@ export function BookingPanel({
     setSelectedSlot(null);
   }, [selectedDate, visibleDates]);
 
+  if (!remoteReady && !supervisorOverride) {
+    return (
+      <p className="text-center text-sm text-clinical-muted py-8">Randevu bilgileri yükleniyor…</p>
+    );
+  }
   if (!supervisor || !service) return null;
 
   const selectedDateObj = selectedDate ? new Date(selectedDate) : null;
@@ -280,59 +331,104 @@ export function BookingPanel({
               </div>
             </div>
 
-            {!user ? (
-              <div className="flex items-center justify-between gap-6 rounded-premium border border-navy-100 bg-navy-50 p-6">
-                <p className="text-sm leading-relaxed text-navy-900">
-                  Randevu olusturmak icin giris yapmaniz gerekmektedir.
-                </p>
-                <Link href="/giris" className="btn-navy shrink-0">
-                  Giris Yap
-                  <LogIn className="h-4 w-4" />
-                </Link>
+            <div className="space-y-6">
+              <div>
+                <label className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-navy-500">
+                  <Mail className="h-3.5 w-3.5" />
+                  E-posta (Google Meet linki) *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="ornek@email.com"
+                  className="w-full rounded-premium border border-clinical-border bg-white px-4 py-3 text-sm focus:border-navy-400 focus:outline-none"
+                />
               </div>
-            ) : (
-              <div className="space-y-6">
-                <div>
-                  <label className="mb-3 block text-xs font-bold uppercase tracking-widest text-navy-500">
-                    Notlariniz (Opsiyonel)
-                  </label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Supervizorunuze iletmek istediginiz kisa bir not..."
-                    className="h-24 w-full resize-none rounded-premium border border-clinical-border bg-white p-4 text-sm focus:border-navy-400 focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const app = createAppointment({
-                      supervisorId: supervisor.id,
-                      supervisorName: supervisor.fullName,
-                      superviseeId: user.id,
-                      superviseeName: user.fullName,
-                      superviseeEmail: user.email,
-                      serviceType,
-                      date: selectedDate!,
-                      startTime: selectedSlot!.start,
-                      endTime: selectedSlot!.end,
-                      amount: supervisor.pricePerSession,
-                      notes,
+              <div>
+                <label className="mb-3 block text-xs font-bold uppercase tracking-widest text-navy-500">
+                  Ad soyad
+                </label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Adınız Soyadınız"
+                  className="w-full rounded-premium border border-clinical-border bg-white px-4 py-3 text-sm focus:border-navy-400 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-3 block text-xs font-bold uppercase tracking-widest text-navy-500">
+                  Notlariniz (Opsiyonel)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Supervizorunuze iletmek istediginiz kisa bir not..."
+                  className="h-24 w-full resize-none rounded-premium border border-clinical-border bg-white p-4 text-sm focus:border-navy-400 focus:outline-none"
+                />
+              </div>
+              {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={async () => {
+                  const trimmedEmail = email.trim().toLowerCase();
+                  if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+                    setSubmitError("Geçerli bir e-posta girin.");
+                    return;
+                  }
+                  setSubmitting(true);
+                  setSubmitError(null);
+                  try {
+                    const res = await fetch("/api/appointments", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        supervisorId: supervisor.id,
+                        superviseeEmail: trimmedEmail,
+                        superviseeName: fullName.trim() || trimmedEmail.split("@")[0],
+                        superviseeId: user?.id,
+                        serviceType: service.id,
+                        date: selectedDate,
+                        startTime: selectedSlot!.start,
+                        endTime: selectedSlot!.end,
+                        notes: notes.trim() || undefined,
+                      }),
                     });
-                    setAppointmentId(app.id);
+                    const data = await res.json();
+                    if (!res.ok) {
+                      setSubmitError(data.error ?? "Randevu oluşturulamadı.");
+                      return;
+                    }
+                    setAppointment(data);
                     setStep("done");
-                  }}
-                  className="btn-navy w-full py-4 text-base"
-                >
-                  Randevuyu Onayla
-                  <CreditCard className="h-5 w-5" />
-                </button>
-              </div>
-            )}
+                  } catch {
+                    setSubmitError("Bağlantı hatası.");
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+                className="btn-navy w-full py-4 text-base disabled:opacity-60"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Kaydediliyor…
+                  </>
+                ) : (
+                  <>
+                    Randevuyu Onayla
+                    <CreditCard className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+            </div>
           </motion.div>
         )}
 
-        {step === "done" && (
+        {step === "done" && appointment && (
           <motion.div
             key="done"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -352,7 +448,7 @@ export function BookingPanel({
               <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
                 Randevu Kodu
               </div>
-              <div className="font-mono font-bold text-navy-900">{appointmentId}</div>
+              <div className="font-mono font-bold text-navy-900">{appointment.id}</div>
             </div>
 
             <div className="flex flex-wrap justify-center gap-4">

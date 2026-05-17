@@ -1,10 +1,18 @@
 import { Header } from "./Header";
 import { Footer } from "./Footer";
+import type { Service } from "@/lib/types";
 
-export function SiteShell({ children }: { children: React.ReactNode }) {
+/** `services` SSR ile sunucudan geçirilir (Header menüsü). */
+export function SiteShell({
+  children,
+  services = [],
+}: {
+  children: React.ReactNode;
+  services?: Service[];
+}) {
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header services={services} />
       <main className="flex-1">{children}</main>
       <Footer />
     </div>
