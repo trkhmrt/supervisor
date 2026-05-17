@@ -3,13 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { syncSupabaseUser } from "@/lib/auth/sync-user";
 import { refreshSupabaseSession } from "@/lib/auth/refresh-supabase-session";
 import { redirectPathForRole } from "@/lib/auth/redirect";
-import { getSiteUrl } from "@/lib/supabase/env";
+import { getRequestOrigin } from "@/lib/supabase/env";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const nextParam = searchParams.get("next");
-  const origin = getSiteUrl();
+  /** OAuth dönüşünde mevcut host (prod domain); env'deki localhost kullanılmaz */
+  const origin = getRequestOrigin(request);
 
   if (code) {
     const supabase = await createClient();
