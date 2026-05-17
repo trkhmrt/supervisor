@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
-import { getActiveServices, getServiceBySlug, getSupervisors } from "@/lib/db/queries";
+import {
+  safeGetActiveServices,
+  safeGetServiceBySlug,
+  safeGetSupervisors,
+} from "@/lib/db/queries";
 import { ServiceDetailClient } from "./ServiceDetailClient";
 
 export const dynamic = "force-dynamic";
@@ -8,10 +12,10 @@ type Props = { params: Promise<{ slug: string }> };
 
 export default async function ServiceDetailPage({ params }: Props) {
   const { slug } = await params;
-  const [service, services, supervisors] = await Promise.all([
-    getServiceBySlug(slug),
-    getActiveServices(),
-    getSupervisors(),
+  const [{ data: service }, { data: services }, { data: supervisors }] = await Promise.all([
+    safeGetServiceBySlug(slug),
+    safeGetActiveServices(),
+    safeGetSupervisors(),
   ]);
 
   if (!service) notFound();

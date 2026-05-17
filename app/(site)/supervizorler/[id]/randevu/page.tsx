@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ensureDefaultAvailabilitySlots } from "@/lib/db/availability";
-import { getActiveServices, getSupervisorById } from "@/lib/db/queries";
+import { safeGetActiveServices, safeGetSupervisorById } from "@/lib/db/queries";
 import { AppointmentBookingClient } from "./AppointmentBookingClient";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +10,15 @@ type Props = { params: Promise<{ id: string }> };
 export default async function SupervisorAppointmentPage({ params }: Props) {
   const { id } = await params;
 
-  await ensureDefaultAvailabilitySlots(id);
+  try {
+    await ensureDefaultAvailabilitySlots(id);
+  } catch (e) {
+    console.error("[randevu] Müsaitlik slotları oluşturulamadı:", e);
+  }
 
-  const [supervisor, services] = await Promise.all([
-    getSupervisorById(id),
-    getActiveServices(),
+  const [{ data: supervisor }, { data: services }] = await Promise.all([
+    safeGetSupervisorById(id),
+    safeGetActiveServices(),
   ]);
 
   if (!supervisor) notFound();

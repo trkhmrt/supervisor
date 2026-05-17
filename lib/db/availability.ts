@@ -11,6 +11,8 @@ function endTimeFromStart(startTime: string, minutes = 50): string {
 
 /** Süpervizörün müsaitlik kaydı yoksa önümüzdeki 21 gün için varsayılan slotlar oluşturur. */
 export async function ensureDefaultAvailabilitySlots(supervisorId: string): Promise<void> {
+  if (!process.env.DATABASE_URL?.trim()) return;
+
   const count = await prisma.availabilitySlot.count({ where: { supervisorId } });
   if (count > 0) return;
 

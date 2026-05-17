@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
-import { getActiveServices, getSupervisorById, getSupervisors } from "@/lib/db/queries";
+import {
+  safeGetActiveServices,
+  safeGetSupervisorById,
+  safeGetSupervisors,
+} from "@/lib/db/queries";
 import { SupervisorProfileClient } from "./SupervisorProfileClient";
 
 export const dynamic = "force-dynamic";
@@ -8,10 +12,10 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function SupervisorProfilePage({ params }: Props) {
   const { id } = await params;
-  const [supervisor, services, supervisors] = await Promise.all([
-    getSupervisorById(id),
-    getActiveServices(),
-    getSupervisors(),
+  const [{ data: supervisor }, { data: services }, { data: supervisors }] = await Promise.all([
+    safeGetSupervisorById(id),
+    safeGetActiveServices(),
+    safeGetSupervisors(),
   ]);
 
   if (!supervisor) notFound();

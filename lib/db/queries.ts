@@ -59,3 +59,25 @@ export async function safeGetSupervisors(): Promise<{
     return { data: [], error: prismaUnavailableMessage(e) };
   }
 }
+
+export async function safeGetSupervisorById(id: string): Promise<{
+  data: Supervisor | null;
+  error: string | null;
+}> {
+  try {
+    return { data: await getSupervisorById(id), error: null };
+  } catch (e) {
+    return { data: null, error: prismaUnavailableMessage(e) };
+  }
+}
+
+export async function safeGetServiceBySlug(slug: string): Promise<{
+  data: Service | null;
+  error: string | null;
+}> {
+  try {
+    return { data: await getServiceBySlug(slug), error: null };
+  } catch (e) {
+    return { data: null, error: prismaUnavailableMessage(e) };
+  }
+}
