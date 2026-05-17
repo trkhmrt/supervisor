@@ -1,3 +1,5 @@
+export { dynamic, fetchCache } from "@/lib/db/api-route-config";
+
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "@/lib/db/admin-account";
 import { ADMIN_SESSION_COOKIE } from "@/lib/auth/admin-token";

@@ -1,3 +1,5 @@
+export { dynamic, fetchCache } from "@/lib/db/api-route-config";
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { prismaUnavailableMessage } from "@/lib/db/prisma-route";

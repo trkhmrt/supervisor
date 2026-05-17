@@ -1,3 +1,5 @@
+export { dynamic, fetchCache } from "@/lib/db/api-route-config";
+
 import { NextResponse } from "next/server";
 import { authorize, guardResponse } from "@/lib/auth/guard";
 import { buildSessionUser } from "@/lib/auth/session-user";
