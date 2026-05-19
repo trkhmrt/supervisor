@@ -20,7 +20,10 @@ export async function POST() {
       return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 401 });
     }
 
-    const appUser = await syncSupabaseUser(user);
+    const appUser = await syncSupabaseUser(user, {
+      forceUpdate: true,
+      syncMetadata: true,
+    });
     const { scopes, isSuperAdmin } = await loadUserScopes(appUser.id);
 
     const sessionRefreshed = await refreshSupabaseSession();

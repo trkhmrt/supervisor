@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck, Loader2 } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
-import { authErrorMessage, signInWithEmail } from "@/lib/auth/client";
+import { authErrorMessage, signInWithCredentials } from "@/lib/auth/client";
 import { redirectPathForRole } from "@/lib/auth/redirect";
 import { useAppStore, useCurrentUser } from "@/lib/store";
 
@@ -27,23 +27,33 @@ function LoginForm() {
     }
   }, [searchParams]);
 
+  const nextPath = searchParams.get("next");
+
   useEffect(() => {
     if (!authReady || !user) return;
-    router.replace(redirectPathForRole(user.role));
-  }, [authReady, user, router]);
+    const dest =
+      nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
+        ? nextPath
+        : redirectPathForRole(user.role);
+    router.replace(dest);
+  }, [authReady, user, router, nextPath]);
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const user = await signInWithEmail(form.email, form.password);
-      if (!user) {
+      const sessionUser = await signInWithCredentials(form.email, form.password);
+      if (!sessionUser) {
         setError("E-posta veya şifre hatalı.");
         return;
       }
-      setAuthUser(user);
-      router.replace(redirectPathForRole(user.role));
+      setAuthUser(sessionUser);
+      const dest =
+        nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
+          ? nextPath
+          : redirectPathForRole(sessionUser.role);
+      router.replace(dest);
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -68,18 +78,22 @@ function LoginForm() {
                 Klinik Gelişiminize <br /> Kaldığınız Yerden <br /> Devam Edin
               </h2>
               <p className="text-navy-300 leading-relaxed max-w-xs">
-                E-posta ve şifre veya Google hesabınızla güvenli giriş yapın.
+                Danışan ve süpervizör hesapları Google veya e-posta ile; yönetici hesapları
+                e-posta ve şifre ile giriş yapar.
               </p>
             </div>
             <p className="relative z-10 pt-12 border-t border-white/10 text-xs text-navy-300">
-              Oturum Supabase Auth ile yönetilir.
+              Admin oturumu güvenli panel kimlik doğrulaması kullanır.
             </p>
           </div>
 
           <div className="p-12 md:p-16">
             <Reveal>
               <h1 className="h2-premium mb-2">Giriş Yap</h1>
-              <p className="text-clinical-muted text-sm mb-8">Hesap bilgileriniz veya Google ile giriş.</p>
+              <p className="text-clinical-muted text-sm mb-8">
+                Hesap bilgileriniz veya Google ile giriş. Admin hesabı için veritabanındaki
+                e-posta ve şifrenizi kullanın.
+              </p>
             </Reveal>
 
             <GoogleAuthButton />

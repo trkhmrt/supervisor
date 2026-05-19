@@ -18,6 +18,13 @@ const nav = [
   { href: "/iletisim", label: "İletişim" },
 ];
 
+/** Sayfa üstünde koyu hero (bg-navy-950) var — şeffaf header'da açık metin gerekir */
+function isDarkHeroPath(pathname: string): boolean {
+  if (pathname === "/") return false;
+  if (pathname.startsWith("/giris") || pathname.startsWith("/kayit")) return false;
+  return true;
+}
+
 export function Header({ services = [] }: { services?: Service[] }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -31,6 +38,7 @@ export function Header({ services = [] }: { services?: Service[] }) {
   async function handleLogout() {
     await signOut();
     logout();
+    window.location.assign("/giris");
   }
 
   useEffect(() => {
@@ -45,6 +53,9 @@ export function Header({ services = [] }: { services?: Service[] }) {
     setDropdownOpen(null);
   }, [pathname]);
 
+  const onDarkHero = isDarkHeroPath(pathname);
+  const lightText = onDarkHero && !scrolled;
+
   return (
     <>
       <header
@@ -56,12 +67,22 @@ export function Header({ services = [] }: { services?: Service[] }) {
         )}
       >
         <div className="container-wide flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-navy-900 rounded-premium flex items-center justify-center text-clinical-white transition-transform group-hover:scale-105">
+          <Link href="/" className="group flex items-center gap-3">
+            <motion.div
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-premium transition-transform group-hover:scale-105",
+                lightText ? "bg-white text-navy-900" : "bg-navy-900 text-clinical-white"
+              )}
+            >
               <ShieldCheck className="h-6 w-6" />
-            </div>
+            </motion.div>
             <div className="flex flex-col">
-              <span className="font-display text-xl font-bold tracking-tight text-navy-900 leading-none">
+              <span
+                className={cn(
+                  "font-display text-xl font-bold leading-none tracking-tight transition-colors",
+                  lightText ? "text-white" : "text-navy-900"
+                )}
+              >
                 {siteName}
               </span>
               <span className="mt-1 inline-block rounded-sm bg-[#d1f90b] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-black">
@@ -87,9 +108,13 @@ export function Header({ services = [] }: { services?: Service[] }) {
                       className={cn(
                         "hover-link flex items-center gap-1 pb-1 text-sm font-bold tracking-wide transition-colors",
                         dropdownOpen === n.label && "hover-link-active",
-                        active
-                          ? "hover-link-active text-black"
-                          : "text-clinical-muted hover:text-black"
+                        lightText
+                          ? active
+                            ? "hover-link-active text-white"
+                            : "text-white/75 hover:text-white"
+                          : active
+                            ? "hover-link-active text-black"
+                            : "text-clinical-muted hover:text-black"
                       )}
                     >
                       {n.label}
@@ -142,9 +167,13 @@ export function Header({ services = [] }: { services?: Service[] }) {
                   href={n.href}
                   className={cn(
                     "hover-link pb-1 text-sm font-bold tracking-wide transition-colors",
-                    active
-                      ? "hover-link-active text-black"
-                      : "text-clinical-muted hover:text-black"
+                    lightText
+                      ? active
+                        ? "hover-link-active text-white"
+                        : "text-white/75 hover:text-white"
+                      : active
+                        ? "hover-link-active text-black"
+                        : "text-clinical-muted hover:text-black"
                   )}
                 >
                   {n.label}
@@ -157,25 +186,43 @@ export function Header({ services = [] }: { services?: Service[] }) {
             {user ? (
               <div className="flex items-center gap-4">
                 <Link
-                  href={user.role === "admin" ? "/admin" : "/panelim"}
-                  className="flex items-center gap-2 text-sm font-bold text-navy-900 hover:text-navy-600 transition-colors"
+                  href="/dashboard"
+                  className={cn(
+                    "flex items-center gap-2 text-sm font-bold transition-colors",
+                    lightText ? "text-white hover:text-white/80" : "text-navy-900 hover:text-navy-600"
+                  )}
                 >
                   <UserCircle className="h-5 w-5" />
                   {user.fullName.split(" ")[0]}
                 </Link>
-                <button 
-                  onClick={() => void handleLogout()} 
-                  className="text-xs font-bold uppercase tracking-widest text-clinical-muted hover:text-black transition-colors"
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className={cn(
+                    "text-xs font-bold uppercase tracking-widest transition-colors",
+                    lightText
+                      ? "text-white/90 hover:text-white"
+                      : "text-navy-900 hover:text-navy-600"
+                  )}
                 >
                   Çıkış
                 </button>
               </div>
             ) : (
               <>
-                <Link href="/giris" className="text-sm font-bold text-navy-900 hover:text-navy-600 transition-colors">
+                <Link
+                  href="/giris"
+                  className={cn(
+                    "text-sm font-bold transition-colors",
+                    lightText ? "text-white hover:text-white/80" : "text-navy-900 hover:text-navy-600"
+                  )}
+                >
                   Giriş
                 </Link>
-                <Link href="/kayit" className="btn-navy py-2 px-5">
+                <Link
+                  href="/kayit"
+                  className={cn("py-2 px-5", lightText ? "btn-white" : "btn-navy")}
+                >
                   Başla
                 </Link>
               </>
@@ -183,7 +230,7 @@ export function Header({ services = [] }: { services?: Service[] }) {
           </div>
 
           <button
-            className="lg:hidden p-2 text-navy-900"
+            className={cn("p-2 lg:hidden", lightText ? "text-white" : "text-navy-900")}
             onClick={() => setOpen(true)}
           >
             <Menu className="h-6 w-6" />
@@ -260,7 +307,7 @@ export function Header({ services = [] }: { services?: Service[] }) {
 
             <div className="p-10 border-t border-clinical-border flex flex-col gap-4">
               {user ? (
-                <Link href="/panelim" className="btn-navy w-full text-center">Panelim</Link>
+                <Link href="/dashboard" className="btn-navy w-full text-center">Dashboard</Link>
               ) : (
                 <>
                   <Link href="/kayit" className="btn-navy w-full text-center">Kayıt Ol</Link>

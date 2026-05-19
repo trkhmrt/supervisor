@@ -28,8 +28,22 @@ enum InviteStatus {
   expired
 }
 
+enum SupervisorApplicationStatus {
+  pending
+  invited
+  rejected
+}
+
+enum CourseEnrollmentStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
 model User {
-  id               String           @id @default(cuid())
+  id               Int              @id @default(autoincrement())
+  supabaseAuthId   String?          @unique
   email            String           @unique
   password         String?
   fullName         String
@@ -37,13 +51,17 @@ model User {
   isSuperAdmin     Boolean          @default(false)
   title            String?
   emailVerified    Boolean          @default(false)
+  phone            String?
   profession       String?
   experienceYears  Int?
   license          String?
   createdAt        DateTime         @default(now())
   supervisor       Supervisor?
-  appointments     Appointment[]    @relation("AppointmentSupervisee")
+  appointments     Appointment[]    @relation("AppointmentMember")
+  courseEnrollments CourseEnrollment[]
   permissions      UserPermission[]
+
+  @@index([role])
 }
 
 model Permission {
@@ -54,7 +72,7 @@ model Permission {
 }
 
 model UserPermission {
-  userId       String
+  userId       Int
   permissionId String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
@@ -64,7 +82,7 @@ model UserPermission {
 
 model Supervisor {
   id                String             @id @default(cuid())
-  userId            String?            @unique
+  userId            Int?               @unique
   user              User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   fullName          String
   title             String
@@ -80,20 +98,67 @@ model Supervisor {
   languages         String[]
   approaches        String[]
   slots             AvailabilitySlot[]
+  calendarDays      SupervisorCalendarDay[]
   appointments      Appointment[]
   reviews           Review[]
+  courses           Course[]
+}
+
+model Course {
+  id                  String             @id @default(cuid())
+  supervisorId        String
+  supervisor          Supervisor         @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  title               String
+  slug                String
+  description         String
+  active              Boolean            @default(true)
+  acceptsApplications Boolean            @default(true)
+  maxParticipants     Int?
+  startsAt            DateTime?
+  endsAt              DateTime?
+  createdAt           DateTime           @default(now())
+  enrollments         CourseEnrollment[]
+
+  @@unique([supervisorId, slug])
+  @@index([supervisorId, active])
+}
+
+model CourseEnrollment {
+  id        String                 @id @default(cuid())
+  courseId  String
+  course    Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    CourseEnrollmentStatus @default(pending)
+  message   String?
+  createdAt DateTime               @default(now())
+
+  @@unique([courseId, userId])
+  @@index([userId])
+  @@index([courseId, status])
 }
 
 model AvailabilitySlot {
   id           String     @id @default(cuid())
   supervisorId String
   supervisor   Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
-  date         String
-  startTime    String
-  endTime      String
+  startsAt     DateTime
+  endsAt       DateTime
   isBooked     Boolean    @default(false)
 
-  @@index([supervisorId, date])
+  @@index([supervisorId, startsAt])
+}
+
+// Süpervizör takviminde gün düzeyinde müsait / müsait değil
+model SupervisorCalendarDay {
+  id           String     @id @default(cuid())
+  supervisorId String
+  supervisor   Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  date         String
+  available    Boolean
+
+  @@unique([supervisorId, date])
+  @@index([supervisorId])
 }
 
 model Appointment {
@@ -101,14 +166,13 @@ model Appointment {
   supervisorId     String
   supervisor       Supervisor        @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
   supervisorName   String
-  superviseeId     String?
-  supervisee       User?             @relation("AppointmentSupervisee", fields: [superviseeId], references: [id], onDelete: SetNull)
+  userId           Int?
+  user             User?             @relation("AppointmentMember", fields: [userId], references: [id], onDelete: SetNull)
   superviseeName   String
   superviseeEmail  String
   serviceType      String
-  date             String
-  startTime        String
-  endTime          String
+  startsAt         DateTime
+  endsAt           DateTime
   status           AppointmentStatus @default(pending_payment)
   meetLink         String?
   paymentApproved  Boolean           @default(false)
@@ -116,14 +180,15 @@ model Appointment {
   notes            String?
   createdAt        DateTime          @default(now())
 
-  @@index([supervisorId])
-  @@index([superviseeId])
-  @@index([date])
+  @@index([userId, startsAt(sort: Desc)])
+  @@index([supervisorId, startsAt(sort: Desc)])
+  @@index([startsAt(sort: Desc)])
+  @@index([superviseeEmail])
 }
 
 model Service {
-  id               String  @id @default(cuid())
-  slug             String  @unique
+  id               String   @id @default(cuid())
+  slug             String   @unique
   name             String
   shortDescription String
   description      String
@@ -131,7 +196,7 @@ model Service {
   icon             String
   price            Int
   duration         Int
-  active           Boolean @default(true)
+  active           Boolean  @default(true)
 }
 
 model BlogPost {
@@ -144,7 +209,7 @@ model BlogPost {
   author       String
   category     String
   tags         String[]
-  publishedAt  String
+  publishedAt  DateTime
   readingTime  Int
   published    Boolean  @default(false)
 }
@@ -156,24 +221,43 @@ model Review {
   authorName    String
   rating        Int
   comment       String
-  createdAt     String
+  createdAt     DateTime
 
   @@index([supervisorId])
 }
 
+model SupervisorApplication {
+  id        String                      @id @default(uuid())
+  fullName  String
+  email     String
+  message   String?
+  status    SupervisorApplicationStatus @default(pending)
+  createdAt DateTime                    @default(now())
+  invite    SupervisorInvite?
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([email])
+}
+
 model SupervisorInvite {
-  id         String       @id @default(cuid())
-  token      String       @unique
-  email      String
-  invitedAt  String
-  acceptedAt String?
-  status     InviteStatus @default(pending)
+  id              String                 @id @default(uuid())
+  token           String                 @unique @default(uuid())
+  email           String
+  invitedAt       DateTime               @default(now())
+  expiresAt       DateTime?
+  acceptedAt      DateTime?
+  status          InviteStatus           @default(pending)
+  applicationId   String?                @unique
+  application     SupervisorApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([email, status])
+  @@index([expiresAt])
 }
 
 model NewsletterSubscriber {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  subscribedAt  String
+  id           String   @id @default(cuid())
+  email        String   @unique
+  subscribedAt DateTime
 }
 
 model ContactMessage {
@@ -182,7 +266,7 @@ model ContactMessage {
   email     String
   subject   String
   message   String
-  createdAt String
+  createdAt DateTime
   read      Boolean  @default(false)
 }
 

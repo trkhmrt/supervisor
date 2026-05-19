@@ -14,8 +14,8 @@ export function formatPrice(amount: number, currency: string = "TRY") {
   }).format(amount);
 }
 
-export function formatDate(dateString: string) {
-  const date = new Date(dateString);
+export function formatDate(dateInput: string | Date) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
   return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "long",
@@ -23,8 +23,8 @@ export function formatDate(dateString: string) {
   }).format(date);
 }
 
-export function formatDateTime(dateString: string, time?: string) {
-  const date = new Date(dateString);
+export function formatDateTime(dateInput: string | Date, time?: string) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
   const formatted = new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "long",

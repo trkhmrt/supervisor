@@ -3,11 +3,30 @@ export { dynamic, fetchCache } from "@/lib/db/api-route-config";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { withAuth } from "@/lib/auth/guard";
+import { GUARD } from "@/lib/auth/guard-presets";
 import { prismaUnavailableMessage } from "@/lib/db/prisma-route";
+import { getSupervisorAdminDetail } from "@/lib/db/supervisor-admin-detail";
 import { supervisorRowToApi } from "@/lib/db/supervisor-mapper";
 import { parseOptionalNumber, parseStringArray } from "@/lib/db/admin-parse";
 
 type Params = { params: Promise<{ id: string }> };
+
+export const GET = withAuth(
+  async (_req, _auth, ctx: Params) => {
+    const { id } = await ctx.params;
+    try {
+      const detail = await getSupervisorAdminDetail(id);
+      if (!detail) {
+        return NextResponse.json({ error: "Süpervizör bulunamadı" }, { status: 404 });
+      }
+      return NextResponse.json(detail);
+    } catch (e) {
+      return NextResponse.json({ error: prismaUnavailableMessage(e) }, { status: 503 });
+    }
+  },
+  GUARD.supervisors.list
+);
 
 export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;

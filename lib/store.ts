@@ -25,6 +25,7 @@ import {
   SUPERVISOR_INVITES,
   USERS,
 } from "./mockData";
+import { sessionFromParts, sessionToParts, toIso } from "./datetime";
 import { generateId, generateMeetLink, slugify } from "./utils";
 
 interface AppState {
@@ -38,7 +39,7 @@ interface AppState {
   newsletter: NewsletterSubscriber[];
   contactMessages: ContactMessage[];
   settings: SiteSettings;
-  currentUserId: string | null;
+  currentUserId: number | null;
   /** Supabase oturum kontrolü tamamlandı mı (yanlış /giris yönlendirmesini önler). */
   authReady: boolean;
 
@@ -66,7 +67,7 @@ interface AppState {
       pricePerSession: number;
     }
   ) => User | null;
-  verifyEmail: (userId: string) => void;
+  verifyEmail: (userId: number) => void;
 
   inviteSupervisor: (email: string) => SupervisorInvite;
   removeInvite: (id: string) => void;
@@ -140,8 +141,9 @@ export const useAppStore = create<AppState>()(
       logout: () => set({ currentUserId: null, authReady: true }),
 
       registerSupervisee: (data) => {
+        const nextUserId = Math.max(0, ...get().users.map((u) => u.id)) + 1;
         const user: User = {
-          id: generateId(),
+          id: nextUserId,
           email: data.email,
           fullName: data.fullName,
           role: "user",
@@ -158,8 +160,9 @@ export const useAppStore = create<AppState>()(
       registerSupervisorFromInvite: (token, data) => {
         const invite = get().invites.find((i) => i.token === token && i.status === "pending");
         if (!invite) return null;
+        const nextUserId = Math.max(0, ...get().users.map((u) => u.id)) + 1;
         const user: User = {
-          id: generateId(),
+          id: nextUserId,
           email: data.email,
           fullName: data.fullName,
           title: data.title,
@@ -174,7 +177,7 @@ export const useAppStore = create<AppState>()(
           userId: user.id,
           fullName: data.fullName,
           title: data.title,
-          photo: "https://i.pravatar.cc/300?u=" + user.id,
+          photo: `https://i.pravatar.cc/300?u=${user.id}`,
           bio: data.bio,
           expertise: data.expertise,
           pricePerSession: data.pricePerSession,
@@ -209,6 +212,7 @@ export const useAppStore = create<AppState>()(
           token: generateId() + "-" + generateId(),
           email,
           invitedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           status: "pending",
         };
         set((s) => ({ invites: [...s.invites, invite] }));
@@ -221,8 +225,10 @@ export const useAppStore = create<AppState>()(
       getInviteByToken: (token) => get().invites.find((i) => i.token === token),
 
       createAppointment: (data) => {
+        const session = sessionFromParts(data.date, data.startTime, data.endTime);
         const appt: Appointment = {
           ...data,
+          ...sessionToParts(session.startsAt, session.endsAt),
           id: generateId(),
           status: "pending_payment",
           paymentApproved: false,
@@ -290,11 +296,15 @@ export const useAppStore = create<AppState>()(
         }),
 
       rescheduleAppointment: (id, date, startTime, endTime) =>
-        set((s) => ({
-          appointments: s.appointments.map((a) =>
-            a.id === id ? { ...a, date, startTime, endTime, status: "rescheduled" } : a
-          ),
-        })),
+        set((s) => {
+          const session = sessionFromParts(date, startTime, endTime);
+          const parts = sessionToParts(session.startsAt, session.endsAt);
+          return {
+            appointments: s.appointments.map((a) =>
+              a.id === id ? { ...a, ...parts, status: "rescheduled" } : a
+            ),
+          };
+        }),
 
       updateSupervisorAvailability: (supervisorId, slots) =>
         set((s) => ({

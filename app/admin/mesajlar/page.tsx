@@ -1,16 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { Mail, Check, Trash2, Download, User, Calendar, MessageSquare, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Mail, Check, Download, User, Calendar, MessageSquare, Trash2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { useAppStore } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
+import type { ContactMessage, NewsletterSubscriber } from "@/lib/types";
 
 export default function AdminMessages() {
-  const contactMessages = useAppStore((s) => s.contactMessages);
-  const newsletter = useAppStore((s) => s.newsletter);
-  const markRead = useAppStore((s) => s.markMessageRead);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
+  const [newsletter, setNewsletter] = useState<NewsletterSubscriber[]>([]);
   const [tab, setTab] = useState<"messages" | "newsletter">("messages");
+
+  const reload = useCallback(async () => {
+    const [msgRes, nlRes] = await Promise.all([
+      fetch("/api/admin/contact", { credentials: "include" }),
+      fetch("/api/admin/newsletter", { credentials: "include" }),
+    ]);
+    if (msgRes.ok) setContactMessages(await msgRes.json());
+    if (nlRes.ok) setNewsletter(await nlRes.json());
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const markRead = async (id: string, read: boolean) => {
+    await fetch("/api/admin/contact", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, read }),
+    });
+    await reload();
+  };
 
   const downloadNewsletter = () => {
     const csv = "Email,SubscribedAt\n" + newsletter.map((n) => `${n.email},${n.subscribedAt}`).join("\n");
@@ -73,7 +95,7 @@ export default function AdminMessages() {
                    </div>
                    <div className="flex items-center gap-2">
                       {!m.read && (
-                        <button onClick={() => markRead(m.id)} className="btn-navy py-2 px-6 text-[10px] uppercase font-bold tracking-widest">
+                        <button onClick={() => void markRead(m.id, true)} className="btn-navy py-2 px-6 text-[10px] uppercase font-bold tracking-widest">
                            Okundu İşaretle
                         </button>
                       )}

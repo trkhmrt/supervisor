@@ -5,7 +5,6 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 import { DbEmptyNotice } from "@/components/site/DbEmptyNotice";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
-import { formatPrice } from "@/lib/utils";
 import type { Service } from "@/lib/types";
 
 export function HizmetlerPageClient({
@@ -65,13 +64,7 @@ export function HizmetlerPageClient({
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-auto flex items-center justify-between pt-8 border-t border-clinical-border">
-                        <div>
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-clinical-muted mb-1">
-                            Seans Başına
-                          </div>
-                          <div className="text-2xl font-bold text-navy-900">{formatPrice(s.price)}</div>
-                        </div>
+                      <div className="mt-auto flex items-center justify-end pt-8 border-t border-clinical-border">
                         <Link href={`/hizmetler/${s.slug}`} className="btn-navy py-2 px-6">
                           Detaylar
                           <ArrowRight className="h-4 w-4" />

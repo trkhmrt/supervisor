@@ -6,7 +6,7 @@ import { signInWithGoogle, authErrorMessage } from "@/lib/auth/client";
 
 export function GoogleAuthButton({
   label = "Google ile devam et",
-  next = "/panelim",
+  next = "/dashboard",
 }: {
   label?: string;
   next?: string;

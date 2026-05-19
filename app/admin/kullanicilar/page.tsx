@@ -1,14 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { Users, Search, Filter, Mail, Shield, UserCheck, MoreVertical } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, Shield, UserCheck, Loader2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { useAppStore } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
+import type { UserRole } from "@/lib/types";
+
+type AdminUser = {
+  id: number;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  emailVerified: boolean;
+  createdAt: string;
+  profession?: string;
+  experienceYears?: number;
+  license?: string;
+};
 
 export default function AdminUsers() {
-  const users = useAppStore((s) => s.users);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/users", { credentials: "include" });
+      if (res.ok) setUsers(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
   const filtered = users.filter(
     (u) =>
@@ -16,80 +43,89 @@ export default function AdminUsers() {
       u.email.toLowerCase().includes(query.toLowerCase())
   );
 
+  const toggleVerified = async (u: AdminUser) => {
+    await fetch(`/api/admin/users/${u.id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emailVerified: !u.emailVerified }),
+    });
+    await reload();
+  };
+
   return (
     <AdminShell>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-         <h1 className="h2-premium text-3xl">Kullanıcı Yönetimi</h1>
-         <div className="flex items-center gap-4">
-            <div className="relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-muted" />
-               <input
-                 placeholder="İsim veya e-posta ara..."
-                 value={query}
-                 onChange={(e) => setQuery(e.target.value)}
-                 className="bg-white border border-clinical-border rounded-premium pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-navy-900 w-64"
-               />
-            </div>
-         </div>
+      <div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
+        <h1 className="h2-premium text-3xl">Kullanıcı Yönetimi</h1>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clinical-muted" />
+          <input
+            placeholder="İsim veya e-posta ara..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-64 rounded-premium border border-clinical-border bg-white py-2 pl-10 pr-4 text-sm focus:border-navy-900 focus:outline-none"
+          />
+        </div>
       </div>
 
-      <div className="bg-white rounded-premium border border-clinical-border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-clinical-muted">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Yükleniyor…
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-premium border border-clinical-border bg-white shadow-sm">
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-clinical-light border-b border-clinical-border">
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Kullanıcı Bilgileri</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Rol</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Durum</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Kayıt Tarihi</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted text-right">İşlemler</th>
+              <tr className="border-b border-clinical-border bg-clinical-light">
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                  Kullanıcı
+                </th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                  Rol
+                </th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                  Meslek / Lisans
+                </th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                  E-posta
+                </th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                  Kayıt
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-clinical-border">
               {filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-clinical-light/50 transition-colors">
+                <tr key={u.id}>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                       <div className="w-10 h-10 bg-navy-50 rounded-full flex items-center justify-center text-navy-900 font-bold text-xs uppercase">
-                          {u.fullName.split(' ').map(n => n[0]).join('')}
-                       </div>
-                       <div>
-                          <div className="text-sm font-bold text-navy-900">{u.fullName}</div>
-                          <div className="text-xs text-clinical-muted mt-0.5">{u.email}</div>
-                       </div>
-                    </div>
+                    <div className="text-xs text-clinical-muted">{u.email}</div>
+                  </td>
+                  <td className="px-6 py-4 text-xs font-bold uppercase">{u.role}</td>
+                  <td className="px-6 py-4 text-xs text-clinical-muted">
+                    {u.profession ?? "—"}
+                    {u.experienceYears != null && ` · ${u.experienceYears} yıl`}
+                    {u.license && <div className="mt-1">{u.license}</div>}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest border ${
-                      u.role === 'admin' ? 'border-black/15 bg-[#f1f0f0] text-black' : 
-                      u.role === 'supervisor' ? 'bg-navy-900 text-white border-navy-900' : 
-                      'bg-navy-50 text-navy-700 border-navy-100'
-                    }`}>
-                      {u.role === 'admin' && <Shield className="h-3 w-3" />}
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {u.emailVerified ? (
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-green-600 uppercase tracking-widest">
-                         <UserCheck className="h-4 w-4" /> Doğrulanmış
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold text-clinical-muted uppercase tracking-widest">Onay Bekliyor</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-clinical-muted">{formatDate(u.createdAt)}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="p-2 text-clinical-muted hover:text-navy-900">
-                       <MoreVertical className="h-4 w-4" />
+                    <button
+                      type="button"
+                      onClick={() => void toggleVerified(u)}
+                      className={`flex items-center gap-1 text-xs font-bold uppercase ${
+                        u.emailVerified ? "text-green-600" : "text-clinical-muted"
+                      }`}
+                    >
+                      <UserCheck className="h-4 w-4" />
+                      {u.emailVerified ? "Doğrulandı" : "Doğrula"}
                     </button>
                   </td>
+                  <td className="px-6 py-4 text-sm">{formatDate(u.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
     </AdminShell>
   );
 }

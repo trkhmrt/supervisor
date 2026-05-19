@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import {
+  getReviewsForSupervisor,
   safeGetActiveServices,
   safeGetSupervisorById,
   safeGetSupervisors,
@@ -12,11 +13,13 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function SupervisorProfilePage({ params }: Props) {
   const { id } = await params;
-  const [{ data: supervisor }, { data: services }, { data: supervisors }] = await Promise.all([
-    safeGetSupervisorById(id),
-    safeGetActiveServices(),
-    safeGetSupervisors(),
-  ]);
+  const [{ data: supervisor }, { data: services }, { data: supervisors }, reviews] =
+    await Promise.all([
+      safeGetSupervisorById(id),
+      safeGetActiveServices(),
+      safeGetSupervisors(),
+      getReviewsForSupervisor(id).catch(() => []),
+    ]);
 
   if (!supervisor) notFound();
 
@@ -29,6 +32,7 @@ export default async function SupervisorProfilePage({ params }: Props) {
       services={services}
       bookingService={bookingService}
       featuredSupervisors={supervisors.slice(0, 3)}
+      reviews={reviews}
     />
   );
 }

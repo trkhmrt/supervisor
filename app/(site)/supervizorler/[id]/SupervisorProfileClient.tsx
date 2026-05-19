@@ -16,19 +16,20 @@ import {
   Video,
 } from "lucide-react";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
-import { useAppStore } from "@/lib/store";
 import { formatPrice, formatDate } from "@/lib/utils";
-import type { Service, Supervisor } from "@/lib/types";
+import { SupervisorCoursesSection } from "@/components/site/SupervisorCoursesSection";
+import type { Review, Service, Supervisor } from "@/lib/types";
 export function SupervisorProfileClient({
   supervisor,
   bookingService,
+  reviews = [],
 }: {
   supervisor: Supervisor;
   services: Service[];
   bookingService: Service | null;
   featuredSupervisors?: Supervisor[];
+  reviews?: Review[];
 }) {
-  const reviews = useAppStore((s) => s.reviews.filter((r) => r.supervisorId === supervisor.id));
 
   return (
     <>
@@ -36,9 +37,9 @@ export function SupervisorProfileClient({
         <div className="absolute top-0 right-0 w-1/3 h-full bg-white/5 -z-0 skew-x-12 translate-x-1/2" />
         <div className="container-wide relative z-10">
           <div className="grid lg:grid-cols-12 gap-16 items-center">
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-4 mx-auto w-full max-w-[220px] sm:max-w-[280px] lg:mx-0 lg:max-w-none">
               <Reveal y={30}>
-                <div className="relative aspect-[4/5] rounded-premium overflow-hidden shadow-2xl border border-white/10">
+                <div className="relative aspect-[3/4] sm:aspect-[4/5] rounded-premium overflow-hidden shadow-2xl border border-white/10">
                   <Image src={supervisor.photo} alt={supervisor.fullName} fill className="object-cover" priority />
                   <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-navy-900 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-accent-blue" />
@@ -154,24 +155,7 @@ export function SupervisorProfileClient({
         </div>
       </section>
 
-      <section className="py-24 bg-clinical-light border-y border-clinical-border">
-        <div className="container-wide">
-          <Reveal>
-            <div className="max-w-3xl mx-auto text-center card-premium p-12">
-              <span className="info-highlight text-xs uppercase tracking-widest">Online Randevu</span>
-              <h2 className="h2-premium mt-4 mb-4">Takvimden gün ve saat seçin</h2>
-              <p className="text-clinical-muted mb-8 leading-relaxed">
-                {supervisor.fullName} ile seans planlamak için müsaitlik takvimine gidin.
-                Google Meet bağlantısı e-posta adresinize iletilir.
-              </p>
-              <Link href={`/supervizorler/${supervisor.id}/randevu`} className="btn-navy inline-flex">
-                Randevu Oluştur
-                <Calendar className="h-4 w-4" />
-              </Link>
-            </div>
-          </Reveal>
-        </div>
-      </section>
+      <SupervisorCoursesSection supervisorId={supervisor.id} />
 
       {reviews.length > 0 && (
         <section className="py-24 bg-white">

@@ -9,16 +9,17 @@ import {
   Users,
   CheckCircle2,
   ArrowUpRight,
+  Calendar,
+  Clock,
   Quote,
   HeartPulse,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
-import { useAppStore } from "@/lib/store";
-import { formatPrice } from "@/lib/utils";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
+import { formatDate } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import type { Service, Supervisor } from "@/lib/types";
+import type { BlogPost, Service, Supervisor } from "@/lib/types";
 
 export function HomePageClient({
   services,
@@ -28,7 +29,7 @@ export function HomePageClient({
   supervisors: Supervisor[];
 }) {
   const featuredSupervisors = supervisors.slice(0, 3);
-  const posts = useAppStore((s) => s.blogPosts.filter((p) => p.published).slice(0, 3));
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const heroWords = ["Güvenle", "Derinlikle", "Etikle"];
   const floatingKeywords = ["Vaka Analizi", "Etik Çerçeve", "Canlı Geri Bildirim", "Sürekli Gelişim"];
   const [activeWordIndex, setActiveWordIndex] = useState(0);
@@ -40,6 +41,13 @@ export function HomePageClient({
 
     return () => window.clearInterval(timer);
   }, [heroWords.length]);
+
+  useEffect(() => {
+    void fetch("/api/blog")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: BlogPost[]) => setPosts(data.slice(0, 3)))
+      .catch(() => setPosts([]));
+  }, []);
 
   return (
     <>
@@ -219,8 +227,7 @@ export function HomePageClient({
                     <p className="text-sm text-clinical-muted mb-6 flex-1">
                       {s.shortDescription}
                     </p>
-                    <div className="flex items-center justify-between pt-6 border-t border-clinical-border mt-auto">
-                      <span className="text-navy-900 font-bold">{formatPrice(s.price)}</span>
+                    <div className="flex items-center justify-end pt-6 border-t border-clinical-border mt-auto">
                       <ArrowUpRight className="h-4 w-4 text-navy-400 group-hover:text-navy-900 transition-colors" />
                     </div>
                   </div>
@@ -318,43 +325,98 @@ export function HomePageClient({
             </Reveal>
           </div>
 
-          <StaggerContainer className="grid md:grid-cols-3 gap-8">
+          <StaggerContainer className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 lg:gap-8">
             {featuredSupervisors.map((sup) => (
               <StaggerItem key={sup.id}>
-                <div className="card-premium p-0 overflow-hidden group">
+                <Link
+                  href={`/supervizorler/${sup.id}`}
+                  className="card-premium p-0 overflow-hidden group block cursor-pointer transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-900 focus-visible:ring-offset-2"
+                >
                   <div className="relative aspect-square overflow-hidden">
                     <Image 
                       src={sup.photo} 
                       alt={sup.fullName} 
-                      fill 
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-                    <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-[#d1f90b] px-3 py-1 text-xs font-bold text-black shadow-sm backdrop-blur">
-                      <CheckCircle2 className="h-3 w-3 text-black" />
-                      Doğrulanmış
-                    </div>
                   </div>
-                  <div className="p-8">
-                    <div className="mb-2 inline-block rounded-md bg-[#d1f90b] px-2 py-1 text-xs font-bold uppercase tracking-widest text-black">{sup.title}</div>
-                    <h3 className="h3-premium mb-4">{sup.fullName}</h3>
-                    <div className="flex flex-wrap gap-2 mb-6">
+                  <div className="p-3 sm:p-5 lg:p-8">
+                    <div className="mb-1 sm:mb-2 inline-block rounded-md bg-[#d1f90b] px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-black line-clamp-1">{sup.title}</div>
+                    <h3 className="text-sm sm:text-xl font-display font-bold text-navy-900 mb-2 sm:mb-4 line-clamp-2 leading-snug">{sup.fullName}</h3>
+                    <div className="hidden sm:flex flex-wrap gap-2 mb-4 sm:mb-6">
                       {sup.expertise.slice(0, 2).map(e => (
                         <span key={e} className="text-[10px] bg-navy-50 text-navy-700 px-2 py-1 rounded uppercase font-bold tracking-wider">
                           {e}
                         </span>
                       ))}
                     </div>
-                    <Link href={`/supervizorler/${sup.id}`} className="group flex items-center justify-between text-sm font-bold text-navy-900 hover:text-black transition-colors">
+                    <span className="flex items-center justify-between text-[11px] sm:text-sm font-bold text-navy-900 group-hover:text-black transition-colors">
                        Profili İncele
                        <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
-                    </Link>
+                    </span>
                   </div>
-                </div>
+                </Link>
               </StaggerItem>
             ))}
           </StaggerContainer>
         </div>
       </section>
+
+      {posts.length > 0 && (
+        <section className="py-24 bg-white">
+          <div className="container-wide">
+            <div className="mb-16 flex flex-col items-end justify-between gap-6 md:flex-row">
+              <div className="max-w-2xl">
+                <Reveal>
+                  <span className="eyebrow-premium">Blog</span>
+                </Reveal>
+                <Reveal delay={0.1}>
+                  <h2 className="h2-premium">Klinik İçgörüler</h2>
+                </Reveal>
+              </div>
+              <Reveal delay={0.2}>
+                <Link href="/blog" className="btn-outline-navy">
+                  Tüm Yazılar
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Reveal>
+            </div>
+            <StaggerContainer className="grid gap-10 md:grid-cols-3">
+              {posts.map((p) => (
+                <StaggerItem key={p.id}>
+                  <Link href={`/blog/${p.slug}`} className="group block h-full">
+                    <div className="card-premium flex h-full flex-col overflow-hidden p-0">
+                    <div className="relative aspect-[16/10] overflow-hidden">
+                      <Image
+                        src={p.cover}
+                        alt={p.title}
+                        fill
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col p-8">
+                      <div className="mb-4 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(p.publishedAt)}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3" />
+                          {p.readingTime} DK
+                        </span>
+                      </div>
+                      <h3 className="h3-premium mb-4 group-hover:text-accent-blue transition-colors">{p.title}</h3>
+                      <p className="line-clamp-3 text-sm leading-relaxed text-clinical-muted">{p.excerpt}</p>
+                    </div>
+                    </div>
+                  </Link>
+                </StaggerItem>
+              ))}
+            </StaggerContainer>
+          </div>
+        </section>
+      )}
 
       {/* TESTIMONIALS */}
       <section className="py-24 bg-clinical-white">

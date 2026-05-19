@@ -9,11 +9,13 @@ export async function buildSessionUser(auth: AuthContext): Promise<SessionUser |
     where: { id: auth.userId },
     select: {
       id: true,
+      supabaseAuthId: true,
       email: true,
       fullName: true,
       role: true,
       emailVerified: true,
       createdAt: true,
+      phone: true,
       profession: true,
       experienceYears: true,
       title: true,

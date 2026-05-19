@@ -17,6 +17,8 @@ import {
 import { Reveal } from "@/components/motion/Reveal";
 import { useCurrentUser } from "@/lib/store";
 import type { Appointment, Service, Supervisor } from "@/lib/types";
+import { MonthCalendarGrid } from "@/components/calendar/MonthCalendarGrid";
+import { bookingDayStatusFromSlots } from "@/lib/calendar-booking";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 type Step = "select" | "confirm" | "done";
@@ -33,7 +35,9 @@ export function AppointmentBookingClient({
   const [step, setStep] = useState<Step>("select");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null);
-  const [weekIndex, setWeekIndex] = useState(0);
+  const now = new Date();
+  const [calYear, setCalYear] = useState(now.getUTCFullYear());
+  const [calMonth, setCalMonth] = useState(now.getUTCMonth() + 1);
   const [email, setEmail] = useState(user?.email ?? "");
   const [fullName, setFullName] = useState(user?.fullName ?? "");
   const [notes, setNotes] = useState("");
@@ -50,26 +54,12 @@ export function AppointmentBookingClient({
     return map;
   }, [supervisor.availability]);
 
-  const dates = Object.keys(groupedByDate).sort().slice(0, 21);
-  const maxWeek = Math.max(0, Math.ceil(dates.length / 7) - 1);
-  const visibleDates = dates.slice(weekIndex * 7, weekIndex * 7 + 7);
+  const hasBookableSlots = supervisor.availability.some((s) => !s.isBooked);
 
   useEffect(() => {
-    if (!dates.length) return;
-    setSelectedDate((prev) => prev ?? dates[0]);
-  }, [dates]);
-
-  useEffect(() => {
-    if (!visibleDates.length) return;
-    if (selectedDate && visibleDates.includes(selectedDate)) return;
-    setSelectedDate(visibleDates[0]);
-    setSelectedSlot(null);
-  }, [selectedDate, visibleDates]);
-
-  const selectedDateObj = selectedDate ? new Date(`${selectedDate}T12:00:00`) : null;
-  const monthTitle = selectedDateObj
-    ? selectedDateObj.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })
-    : "Takvim";
+    const first = Object.keys(groupedByDate).sort()[0];
+    if (first) setSelectedDate((prev) => prev ?? first);
+  }, [groupedByDate]);
 
   const daySlots = selectedDate ? groupedByDate[selectedDate] ?? [] : [];
   const morningSlots = daySlots.filter((slot) => Number(slot.startTime.split(":")[0]) < 12);
@@ -95,7 +85,7 @@ export function AppointmentBookingClient({
           supervisorId: supervisor.id,
           superviseeEmail: trimmedEmail,
           superviseeName: fullName.trim() || trimmedEmail.split("@")[0],
-          superviseeId: user?.id,
+          userId: user?.id,
           serviceType: service.id,
           date: selectedDate,
           startTime: selectedSlot.start,
@@ -196,67 +186,29 @@ export function AppointmentBookingClient({
                         Tarih ve saat
                       </h2>
 
-                      {dates.length === 0 ? (
+                      {!hasBookableSlots ? (
                         <p className="text-clinical-muted text-sm py-6 text-center">
                           Şu an müsait randevu saati yok. Lütfen daha sonra tekrar deneyin.
                         </p>
                       ) : (
                         <>
-                          <motion.div className="flex items-center justify-between">
-                            <div className="text-2xl font-bold capitalize text-navy-900">
-                              {monthTitle}
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setWeekIndex((p) => Math.max(0, p - 1))}
-                                disabled={weekIndex === 0}
-                                className="h-10 w-10 rounded-full border border-clinical-border flex items-center justify-center disabled:opacity-35"
-                                aria-label="Önceki hafta"
-                              >
-                                <ChevronLeft className="h-5 w-5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setWeekIndex((p) => Math.min(maxWeek, p + 1))}
-                                disabled={weekIndex >= maxWeek}
-                                className="h-10 w-10 rounded-full border border-clinical-border flex items-center justify-center disabled:opacity-35"
-                              >
-                                <ChevronRight className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </motion.div>
-
-                          <div className="grid grid-cols-7 gap-2 text-center">
-                            {visibleDates.map((date) => {
-                              const dayDate = new Date(`${date}T12:00:00`);
-                              const isSelected = selectedDate === date;
-                              return (
-                                <button
-                                  key={date}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedDate(date);
-                                    setSelectedSlot(null);
-                                  }}
-                                  className="space-y-2"
-                                >
-                                  <div className="text-xs font-bold uppercase tracking-widest text-clinical-muted">
-                                    {dayDate.toLocaleDateString("tr-TR", { weekday: "short" })}
-                                  </div>
-                                  <motion.div
-                                    className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-bold transition ${
-                                      isSelected
-                                        ? "bg-navy-900 text-white"
-                                        : "bg-white text-navy-900 border border-clinical-border"
-                                    }`}
-                                  >
-                                    {dayDate.getDate()}
-                                  </motion.div>
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <MonthCalendarGrid
+                            year={calYear}
+                            month={calMonth}
+                            selectedDate={selectedDate}
+                            legend
+                            getStatus={(date) =>
+                              bookingDayStatusFromSlots(date, supervisor.availability)
+                            }
+                            onMonthChange={(y, m) => {
+                              setCalYear(y);
+                              setCalMonth(m);
+                            }}
+                            onDayClick={(date) => {
+                              setSelectedDate(date);
+                              setSelectedSlot(null);
+                            }}
+                          />
 
                           <div>
                             <h3 className="font-display text-2xl font-bold text-navy-900 mb-4">
@@ -428,7 +380,7 @@ export function AppointmentBookingClient({
                         </motion.div>
                       </div>
                       <motion.div className="flex flex-wrap justify-center gap-3">
-                        <Link href="/panelim" className="btn-navy">
+                        <Link href="/dashboard" className="btn-navy">
                           Panelim
                         </Link>
                         <Link href={`/supervizorler/${supervisor.id}`} className="btn-outline-navy">

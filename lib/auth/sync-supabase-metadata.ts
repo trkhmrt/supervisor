@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { prisma } from "@/lib/prisma";
 import { loadUserScopes } from "@/lib/auth/user-scopes";
 import type { UserRole } from "@/lib/types";
 
@@ -13,10 +14,14 @@ export type AppMetadataClaims = {
 
 export type SyncMetadataResult =
   | { ok: true }
-  | { ok: false; reason: "no_service_role" | "auth_user_not_found" | "update_failed" | "error"; detail?: string };
+  | {
+      ok: false;
+      reason: "no_service_role" | "no_supabase_link" | "auth_user_not_found" | "update_failed" | "error";
+      detail?: string;
+    };
 
-/** Prisma rol + scope → Supabase Auth app_metadata (session JSON + access JWT) */
-export async function syncSupabaseAppMetadata(userId: string): Promise<SyncMetadataResult> {
+/** Prisma User.id → Supabase Auth app_metadata (yalnızca supabaseAuthId olan hesaplar) */
+export async function syncSupabaseAppMetadata(prismaUserId: number): Promise<SyncMetadataResult> {
   const admin = createSupabaseAdminClient();
   if (!admin) {
     const detail = "SUPERVISOR_SUPABASE_SERVICE_ROLE_KEY tanımlı değil (.env.local)";
@@ -25,9 +30,19 @@ export async function syncSupabaseAppMetadata(userId: string): Promise<SyncMetad
   }
 
   try {
-    const { role, isSuperAdmin, scopes } = await loadUserScopes(userId);
+    const dbUser = await prisma.user.findUnique({
+      where: { id: prismaUserId },
+      select: { supabaseAuthId: true },
+    });
 
-    const { data: existing, error: getError } = await admin.auth.admin.getUserById(userId);
+    if (!dbUser?.supabaseAuthId) {
+      return { ok: false, reason: "no_supabase_link", detail: "Admin-only hesap (Supabase bağlantısı yok)" };
+    }
+
+    const { role, isSuperAdmin, scopes } = await loadUserScopes(prismaUserId);
+    const supabaseAuthId = dbUser.supabaseAuthId;
+
+    const { data: existing, error: getError } = await admin.auth.admin.getUserById(supabaseAuthId);
     if (getError || !existing?.user) {
       const detail = getError?.message ?? "Auth kullanıcısı yok";
       if (process.env.NODE_ENV === "development") console.warn("[auth] getUserById:", detail);
@@ -45,7 +60,7 @@ export async function syncSupabaseAppMetadata(userId: string): Promise<SyncMetad
       is_admin: role === "admin" ? 1 : 0,
     };
 
-    const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
+    const { error: updateError } = await admin.auth.admin.updateUserById(supabaseAuthId, {
       app_metadata: { ...prev, ...claims },
     });
 

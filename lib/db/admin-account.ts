@@ -23,7 +23,7 @@ export async function authenticateAdmin(email: string, password: string) {
 
   const { scopes, isSuperAdmin } = await loadUserScopes(user.id);
   const token = await signAdminToken({
-    sub: user.id,
+    sub: String(user.id),
     email: user.email,
     role: user.role as UserRole,
     isSuperAdmin,

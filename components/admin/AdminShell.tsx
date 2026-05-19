@@ -28,6 +28,7 @@ const nav = [
   { href: "/admin/randevular", label: "Randevular", icon: Calendar },
   { href: "/admin/kullanicilar", label: "Kullanıcılar", icon: Users },
   { href: "/admin/supervizorler", label: "Süpervizörler", icon: UserPlus },
+  { href: "/admin/kurslar", label: "Kurslar", icon: BookOpen },
   { href: "/admin/hizmetler", label: "Hizmetler", icon: Layers },
   { href: "/admin/blog", label: "Blog", icon: BookOpen },
   { href: "/admin/mesajlar", label: "Mesajlar & Bülten", icon: Mail },
@@ -46,7 +47,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authReady) return;
     if (!user) router.push("/giris");
-    else if (user.role !== "admin") router.push("/panelim");
+    else if (user.role !== "admin") router.push("/dashboard");
   }, [user, authReady, router]);
 
   useEffect(() => {
@@ -119,7 +120,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               router.push("/");
             });
           }}
-          className="flex w-full items-center gap-3 rounded-premium px-4 py-3 text-xs font-bold text-black/80 transition-all hover:bg-black/10"
+          className="flex w-full items-center gap-3 rounded-premium px-4 py-3 text-xs font-bold text-navy-300 transition-all hover:bg-white/5 hover:text-white"
         >
           <LogOut className="h-4 w-4" /> Çıkış Yap
         </button>

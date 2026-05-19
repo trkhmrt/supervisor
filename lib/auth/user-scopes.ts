@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ALL_SCOPES, type Scope } from "@/lib/auth/permissions";
 import type { UserRole } from "@/lib/types";
 
-export async function loadUserScopes(userId: string): Promise<{
+export async function loadUserScopes(userId: number): Promise<{
   role: UserRole;
   isSuperAdmin: boolean;
   scopes: Scope[];
@@ -37,7 +37,7 @@ export async function ensurePermissionSeeds(): Promise<void> {
   }
 }
 
-export async function setUserScopes(userId: string, scopeKeys: Scope[]): Promise<void> {
+export async function setUserScopes(userId: number, scopeKeys: Scope[]): Promise<void> {
   await ensurePermissionSeeds();
   const perms = await prisma.permission.findMany({
     where: { key: { in: scopeKeys } },

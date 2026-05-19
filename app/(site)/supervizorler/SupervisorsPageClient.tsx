@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useMemo } from "react";
-import { Search, Users, CheckCircle2 } from "lucide-react";
+import { Search } from "lucide-react";
 import { DbEmptyNotice } from "@/components/site/DbEmptyNotice";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import type { Supervisor } from "@/lib/types";
@@ -95,29 +95,29 @@ export function SupervisorsPageClient({
             />
           ) : (
             <>
-              <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <StaggerContainer className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 lg:gap-8">
                 {filtered.map((s) => (
                   <StaggerItem key={s.id}>
-                    <div className="card-premium p-0 overflow-hidden group">
+                    <Link
+                      href={`/supervizorler/${s.id}`}
+                      className="card-premium p-0 overflow-hidden group h-full flex flex-col block cursor-pointer transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-900 focus-visible:ring-offset-2"
+                    >
                       <div className="relative aspect-square">
                         <Image
                           src={s.photo}
                           alt={s.fullName}
                           fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
                           className="object-cover transition-transform duration-700 group-hover:scale-105"
                         />
-                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-navy-900 flex items-center gap-1 shadow-sm">
-                          <CheckCircle2 className="h-3 w-3 text-accent-blue" />
-                          Doğrulanmış
-                        </div>
                       </div>
-                      <div className="p-8">
-                        <div className="text-xs font-bold text-accent-gold uppercase tracking-widest mb-2">
+                      <div className="flex flex-1 flex-col p-3 sm:p-5 lg:p-8">
+                        <div className="text-[10px] sm:text-xs font-bold text-accent-gold uppercase tracking-widest mb-1 sm:mb-2 line-clamp-1">
                           {s.title}
                         </div>
-                        <h3 className="h3-premium mb-4">{s.fullName}</h3>
-                        <p className="text-clinical-muted text-sm leading-relaxed mb-6 line-clamp-2">{s.bio}</p>
-                        <div className="flex flex-wrap gap-2 mb-8">
+                        <h3 className="text-sm sm:text-lg font-display font-bold text-navy-900 mb-2 sm:mb-4 line-clamp-2 leading-snug">{s.fullName}</h3>
+                        <p className="hidden sm:block text-clinical-muted text-sm leading-relaxed mb-4 lg:mb-6 line-clamp-2">{s.bio}</p>
+                        <div className="hidden sm:flex flex-wrap gap-2">
                           {s.expertise.slice(0, 3).map((e) => (
                             <span
                               key={e}
@@ -127,22 +127,8 @@ export function SupervisorsPageClient({
                             </span>
                           ))}
                         </div>
-                        <div className="flex items-center justify-between pt-6 border-t border-clinical-border">
-                          <div className="flex items-center gap-2 text-clinical-muted text-xs">
-                            <Users className="h-4 w-4" />
-                            <span className="font-bold">{s.yearsExperience}+ Yıl Tecrübe</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <Link href={`/supervizorler/${s.id}`} className="btn-outline-navy py-2 px-4 text-xs">
-                              Profil
-                            </Link>
-                            <Link href={`/supervizorler/${s.id}/randevu`} className="btn-navy py-2 px-4 text-xs">
-                              Randevu Al
-                            </Link>
-                          </div>
-                        </div>
                       </div>
-                    </div>
+                    </Link>
                   </StaggerItem>
                 ))}
               </StaggerContainer>

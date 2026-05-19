@@ -5,6 +5,7 @@ export function panelFetch(_user: User, url: string, init?: RequestInit) {
   return fetch(url, {
     ...init,
     credentials: "include",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),

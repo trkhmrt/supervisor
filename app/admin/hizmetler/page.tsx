@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Layers, Plus, Loader2, Trash2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
-import { formatPrice, slugify } from "@/lib/utils";
+import { slugify } from "@/lib/utils";
 import type { Service } from "@/lib/types";
 
 async function fetchAllServices(): Promise<Service[]> {
@@ -27,7 +27,6 @@ export default function AdminServices() {
     description: "",
     features: "50 dakikalık online seans\nVaka odaklı çalışma",
     icon: "user",
-    price: "1500",
     duration: "50",
   });
 
@@ -95,7 +94,7 @@ export default function AdminServices() {
           description: form.description.trim(),
           features,
           icon: form.icon,
-          price: Number(form.price) || 0,
+          price: 0,
           duration: Number(form.duration) || 50,
           active: true,
         }),
@@ -108,10 +107,9 @@ export default function AdminServices() {
         shortDescription: "",
         description: "",
         features: "50 dakikalık online seans\nVaka odaklı çalışma",
-        icon: "user",
-        price: "1500",
-        duration: "50",
-      });
+    icon: "user",
+    duration: "50",
+  });
       setShowForm(false);
       await reload();
     } catch (err) {
@@ -192,24 +190,14 @@ export default function AdminServices() {
               <option value="handshake">Akran (handshake)</option>
               <option value="stage">Simülasyon (stage)</option>
             </select>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={0}
-                placeholder="Fiyat"
-                value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                className="flex-1 rounded-premium border border-clinical-border px-3 py-2 text-sm"
-              />
-              <input
-                type="number"
-                min={1}
-                placeholder="Dakika"
-                value={form.duration}
-                onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-                className="w-28 rounded-premium border border-clinical-border px-3 py-2 text-sm"
-              />
-            </div>
+            <input
+              type="number"
+              min={1}
+              placeholder="Süre (dakika)"
+              value={form.duration}
+              onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+              className="rounded-premium border border-clinical-border px-3 py-2 text-sm"
+            />
             <div className="md:col-span-2 flex gap-2">
               <button type="submit" disabled={saving} className="btn-navy py-2 px-6 text-xs">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kaydet"}
@@ -255,12 +243,9 @@ export default function AdminServices() {
             <p className="text-clinical-muted text-sm leading-relaxed mb-8 line-clamp-2">{s.description}</p>
 
             <div className="flex items-center justify-between pt-6 border-t border-clinical-border">
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-clinical-muted mb-1">
-                  Başlangıç Ücreti
-                </div>
-                <div className="text-xl font-bold text-navy-900">{formatPrice(s.price)}</div>
-              </div>
+              <span className="text-xs font-bold uppercase tracking-widest text-clinical-muted">
+                {s.duration} dk
+              </span>
               <div className="flex gap-2">
                 <button
                   type="button"

@@ -3,22 +3,33 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ShieldCheck, MailCheck, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowRight, ShieldCheck, MailCheck, AlertCircle, Loader2, Phone, Mail, User, Lock } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { authErrorMessage, signUpWithEmail } from "@/lib/auth/client";
 import { redirectPathForRole } from "@/lib/auth/redirect";
 import { useAppStore } from "@/lib/store";
+import { SupervisorRequestBlock } from "@/components/site/SupervisorRequestBlock";
+
+function normalizePhone(value: string): string {
+  return value.replace(/\s/g, "").replace(/[()-]/g, "");
+}
+
+function isValidPhone(value: string): boolean {
+  const digits = normalizePhone(value).replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
   const setAuthUser = useAppStore((s) => s.setAuthUser);
 
   const [form, setForm] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
+    phone: "",
     password: "",
-    profession: "",
-    experienceYears: 0,
     accept: false,
   });
   const [step, setStep] = useState<"form" | "verify" | "done">("form");
@@ -38,7 +49,7 @@ export default function RegisterPage() {
               yönetebilirsiniz.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <button onClick={() => router.push("/panelim")} className="btn-navy py-3 px-8">
+              <button onClick={() => router.push("/dashboard")} className="btn-navy py-3 px-8">
                 Panelime Git
                 <ArrowRight className="h-4 w-4" />
               </button>
@@ -90,8 +101,8 @@ export default function RegisterPage() {
                     Aramıza <br /> Katılın
                   </h2>
                   <p className="text-navy-300 leading-relaxed">
-                    Ücretsiz hesap oluşturun; süpervizörlerden randevu alın,
-                    randevularınızı panelinizden takip edin.
+                    Süpervizyon alan olarak ücretsiz kayıt olun; süpervizörlerden randevu alın.
+                    Süpervizör kaydı yalnızca davet linki ile açılır.
                   </p>
                   
                </div>
@@ -102,9 +113,17 @@ export default function RegisterPage() {
                <Reveal>
                   <h1 className="h2-premium mb-2">Kayıt Ol</h1>
                   <p className="text-clinical-muted text-sm mb-8">
-                    Bireysel kullanıcı hesabı oluşturun — e-posta ile kayıt olun.
+                    Üye hesabı oluşturun — e-posta veya Google ile kayıt olabilirsiniz.
                   </p>
                </Reveal>
+
+               <GoogleAuthButton label="Google ile kayıt ol" next="/dashboard" />
+
+                              <div className="my-8 flex items-center gap-4">
+                 <div className="h-px flex-1 bg-clinical-border" />
+                 <span className="text-xs font-bold uppercase tracking-widest text-clinical-muted">veya e-posta ile</span>
+                                <div className="h-px flex-1 bg-clinical-border" />
+               </div>
 
                <form
                 onSubmit={async (e) => {
@@ -114,14 +133,22 @@ export default function RegisterPage() {
                     setError("Devam etmek için kullanım koşullarını kabul etmelisiniz.");
                     return;
                   }
+                  if (!form.firstName.trim() || !form.lastName.trim()) {
+                    setError("Ad ve soyad zorunludur.");
+                    return;
+                  }
+                  if (!isValidPhone(form.phone)) {
+                    setError("Geçerli bir telefon numarası girin (en az 10 rakam).");
+                    return;
+                  }
                   setLoading(true);
                   try {
                     const user = await signUpWithEmail({
-                      fullName: form.fullName,
+                      firstName: form.firstName,
+                      lastName: form.lastName,
                       email: form.email,
+                      phone: normalizePhone(form.phone),
                       password: form.password,
-                      profession: form.profession,
-                      experienceYears: form.experienceYears,
                     });
                     if (user) {
                       setAuthUser(user);
@@ -138,64 +165,79 @@ export default function RegisterPage() {
                 className="space-y-6"
               >
                 <div className="grid md:grid-cols-2 gap-6">
-                   <div className="space-y-2">
-                     <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Ad Soyad</label>
-                     <input
-                       required
-                       value={form.fullName}
-                       onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-                       placeholder="Ayşe Yılmaz"
-                       className="w-full bg-clinical-light border border-clinical-border rounded-premium px-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
-                     />
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-xs font-bold uppercase tracking-widest text-navy-900">E-posta</label>
-                     <input
-                       required
-                       type="email"
-                       value={form.email}
-                       onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                       placeholder="ornek@email.com"
-                       className="w-full bg-clinical-light border border-clinical-border rounded-premium px-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
-                     />
-                   </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Ad</label>
+                                        <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
+                      <input
+                        required
+                        value={form.firstName}
+                        onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                        placeholder="Ayşe"
+                        className="w-full bg-clinical-light border border-clinical-border rounded-premium pl-12 pr-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Soyad</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
+                      <input
+                        required
+                        value={form.lastName}
+                        onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                        placeholder="Yılmaz"
+                        className="w-full bg-clinical-light border border-clinical-border rounded-premium pl-12 pr-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                   <div className="space-y-2">
-                     <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Meslek / Uzmanlık</label>
-                     <input
-                       required
-                       value={form.profession}
-                       onChange={(e) => setForm((f) => ({ ...f, profession: e.target.value }))}
-                       placeholder="Örn. Psikoloji öğrencisi"
-                       className="w-full bg-clinical-light border border-clinical-border rounded-premium px-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
-                     />
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Deneyim (Yıl)</label>
-                     <input
-                       type="number"
-                       min={0}
-                       value={form.experienceYears}
-                       onChange={(e) => setForm((f) => ({ ...f, experienceYears: Number(e.target.value) }))}
-                       placeholder="0"
-                       className="w-full bg-clinical-light border border-clinical-border rounded-premium px-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
-                     />
-                   </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-navy-900">E-posta</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
+                      <input
+                        required
+                        type="email"
+                        value={form.email}
+                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                        placeholder="ornek@email.com"
+                        className="w-full bg-clinical-light border border-clinical-border rounded-premium pl-12 pr-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Telefon</label>
+                                        <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
+                      <input
+                        required
+                        type="tel"
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                        placeholder="05XX XXX XX XX"
+                        className="w-full bg-clinical-light border border-clinical-border rounded-premium pl-12 pr-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Şifre</label>
-                  <input
-                    required
-                    type="password"
-                    minLength={6}
-                    value={form.password}
-                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    placeholder="En az 6 karakter"
-                    className="w-full bg-clinical-light border border-clinical-border rounded-premium px-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
-                  />
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
+                    <input
+                      required
+                      type="password"
+                      minLength={6}
+                      value={form.password}
+                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                      placeholder="En az 6 karakter"
+                      className="w-full bg-clinical-light border border-clinical-border rounded-premium pl-12 pr-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-start gap-3 py-2">
@@ -231,6 +273,8 @@ export default function RegisterPage() {
                     </>
                   )}
                 </button>
+
+                <SupervisorRequestBlock />
 
                 <div className="pt-6 text-center text-sm text-clinical-muted">
                   Zaten hesabınız var mı?{" "}

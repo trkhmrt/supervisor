@@ -1,25 +1,54 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Calendar,
-  Search,
-  Filter,
-  Check,
-  X,
-  Clock,
-  MoreVertical,
-  ExternalLink,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, Check, X, Loader2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { useAppStore } from "@/lib/store";
 import { formatPrice, formatDate } from "@/lib/utils";
+import type { Appointment } from "@/lib/types";
 
 export default function AdminAppointments() {
-  const appointments = useAppStore((s) => s.appointments);
-  const approvePayment = useAppStore((s) => s.approvePayment);
-  const cancelAppointment = useAppStore((s) => s.cancelAppointment);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/appointments?limit=100", { credentials: "include" });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? "Randevular yüklenemedi");
+      }
+      const data = (await res.json()) as { items: Appointment[] };
+      setAppointments(data.items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Yüklenemedi");
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const patch = async (id: string, action: string) => {
+    const res = await fetch(`/api/admin/appointments/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      alert(j.error ?? "İşlem başarısız");
+      return;
+    }
+    await reload();
+  };
 
   const filtered = appointments.filter(
     (a) =>
@@ -30,102 +59,115 @@ export default function AdminAppointments() {
 
   return (
     <AdminShell>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-         <h1 className="h2-premium text-3xl">Randevular</h1>
-         <div className="flex items-center gap-4">
-            <div className="relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-muted" />
-               <input
-                 placeholder="İsim veya kod ara..."
-                 value={query}
-                 onChange={(e) => setQuery(e.target.value)}
-                 className="bg-white border border-clinical-border rounded-premium pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-navy-900 w-64"
-               />
-            </div>
-            <button className="btn-outline-navy py-2 px-4 text-xs">
-               <Filter className="h-4 w-4" /> Filtrele
-            </button>
-         </div>
-      </div>
-
-      <div className="bg-white rounded-premium border border-clinical-border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-clinical-light border-b border-clinical-border">
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Kullanıcı / Uzman</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Tarih & Saat</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Hizmet</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Ücret</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">Durum</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted text-right">İşlemler</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-clinical-border">
-              {filtered.map((a) => (
-                <tr key={a.id} className="hover:bg-clinical-light/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-bold text-navy-900">{a.superviseeName}</div>
-                    <div className="text-[10px] text-clinical-muted font-bold uppercase tracking-widest mt-1">{a.supervisorName}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-navy-900">{formatDate(a.date)}</div>
-                    <div className="text-xs text-clinical-muted mt-1">{a.startTime} - {a.endTime}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-medium text-navy-700 bg-navy-50 px-2 py-1 rounded">
-                      {a.serviceType}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-bold text-navy-900">{formatPrice(a.amount)}</td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={a.status} />
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {!a.paymentApproved && a.status === "pending_payment" && (
-                        <button
-                          onClick={() => approvePayment(a.id)}
-                          className="p-2 bg-green-50 text-green-600 rounded hover:bg-green-600 hover:text-white transition-all"
-                          title="Ödemeyi Onayla"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                      )}
-                      {a.status !== "cancelled" && (
-                        <button
-                          onClick={() => cancelAppointment(a.id)}
-                          className="rounded bg-[#f1f0f0] p-2 text-black transition-all hover:bg-black hover:text-white"
-                          title="İptal Et"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                      <button className="p-2 text-clinical-muted hover:text-navy-900">
-                         <MoreVertical className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
+        <h1 className="h2-premium text-3xl">Randevular</h1>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clinical-muted" />
+          <input
+            placeholder="İsim veya kod ara..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-64 rounded-premium border border-clinical-border bg-white py-2 pl-10 pr-4 text-sm focus:border-navy-900 focus:outline-none"
+          />
         </div>
       </div>
+
+      {error && (
+        <p className="mb-6 rounded-premium border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-clinical-muted">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Yükleniyor…
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-premium border border-clinical-border bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-clinical-border bg-clinical-light">
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                    Kullanıcı / Uzman
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                    Tarih
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                    Ücret
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                    Durum
+                  </th>
+                  <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                    İşlem
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-clinical-border">
+                {filtered.map((a) => (
+                  <tr key={a.id} className="hover:bg-clinical-light/50">
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-bold text-navy-900">{a.superviseeName}</div>
+                      <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                        {a.supervisorName}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {formatDate(a.date)} {a.startTime}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-bold">{formatPrice(a.amount)}</td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={a.status} />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        {!a.paymentApproved && a.status === "pending_payment" && (
+                          <button
+                            type="button"
+                            onClick={() => void patch(a.id, "approve_payment")}
+                            className="rounded bg-green-50 p-2 text-green-600 hover:bg-green-600 hover:text-white"
+                            title="Ödemeyi onayla"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                        )}
+                        {a.status !== "cancelled" && a.status !== "completed" && (
+                          <button
+                            type="button"
+                            onClick={() => void patch(a.id, "cancel")}
+                            className="rounded bg-[#f1f0f0] p-2 text-black hover:bg-black hover:text-white"
+                            title="İptal"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </AdminShell>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: any = {
+  const map: Record<string, { label: string; cls: string }> = {
     pending_payment: { label: "Ödeme Bekliyor", cls: "bg-amber-50 text-amber-700 border-amber-100" },
     confirmed: { label: "Onaylı", cls: "bg-green-50 text-green-700 border-green-100" },
     completed: { label: "Tamamlandı", cls: "bg-navy-50 text-navy-700 border-navy-100" },
-    cancelled: { label: "İptal Edildi", cls: "border-black/15 bg-[#f1f0f0] text-black" },
+    cancelled: { label: "İptal", cls: "border-black/15 bg-[#f1f0f0] text-black" },
+    rescheduled: { label: "Yenilendi", cls: "bg-blue-50 text-blue-700 border-blue-100" },
   };
-  const s = map[status] ?? { label: status, cls: "bg-clinical-light text-clinical-muted border-clinical-border" };
+  const s = map[status] ?? { label: status, cls: "bg-clinical-light text-clinical-muted" };
   return (
-    <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest border ${s.cls}`}>
+    <span className={`inline-block rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${s.cls}`}>
       {s.label}
     </span>
   );

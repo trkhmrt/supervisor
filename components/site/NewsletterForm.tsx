@@ -2,26 +2,33 @@
 
 import { useState } from "react";
 import { Send, Check, Loader2 } from "lucide-react";
-import { useAppStore } from "@/lib/store";
 
 export function NewsletterForm() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "exists">("idle");
-  const addNewsletter = useAppStore((s) => s.addNewsletter);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.includes("@")) return;
-    
+
     setStatus("loading");
-    
-    // Simulate network delay for premium feel
-    setTimeout(() => {
-      const ok = addNewsletter(email);
-      setStatus(ok ? "ok" : "exists");
-      if (ok) setEmail("");
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const j = (await res.json()) as { created?: boolean };
+      if (!res.ok) {
+        setStatus("idle");
+        return;
+      }
+      setStatus(j.created === false ? "exists" : "ok");
+      if (j.created !== false) setEmail("");
       setTimeout(() => setStatus("idle"), 3000);
-    }, 800);
+    } catch {
+      setStatus("idle");
+    }
   };
 
   return (
@@ -32,12 +39,12 @@ export function NewsletterForm() {
         placeholder="E-posta adresiniz"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="flex-1 bg-white/5 border border-white/10 rounded-premium px-5 py-3 text-sm text-white placeholder-navy-400 focus:outline-none focus:border-white/30 transition-colors"
+        className="flex-1 rounded-premium border border-white/10 bg-white/5 px-5 py-3 text-sm text-white placeholder-navy-400 focus:border-white/30 focus:outline-none"
       />
       <button
         type="submit"
         disabled={status === "loading" || status === "ok"}
-        className="bg-white text-navy-950 px-6 py-3 rounded-premium text-sm font-bold flex items-center gap-2 hover:bg-navy-50 transition-colors disabled:opacity-70"
+        className="flex items-center gap-2 rounded-premium bg-white px-6 py-3 text-sm font-bold text-navy-950 hover:bg-navy-50 disabled:opacity-70"
       >
         {status === "loading" ? (
           <Loader2 className="h-4 w-4 animate-spin" />

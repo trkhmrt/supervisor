@@ -1,3 +1,4 @@
+import { sessionToParts } from "@/lib/datetime";
 import type { Supervisor } from "@/lib/types";
 import type { AvailabilitySlot as PrismaSlot, Supervisor as PrismaSupervisor } from "@prisma/client";
 
@@ -23,9 +24,7 @@ export function supervisorRowToApi(row: SupervisorWithSlots): Supervisor {
     availability: row.slots.map((slot) => ({
       id: slot.id,
       supervisorId: slot.supervisorId,
-      date: slot.date,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
+      ...sessionToParts(slot.startsAt, slot.endsAt),
       isBooked: slot.isBooked,
     })),
   };

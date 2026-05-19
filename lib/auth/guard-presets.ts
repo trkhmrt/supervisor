@@ -15,6 +15,62 @@ export const GUARD = {
     update: { roles: "admin", scopes: SCOPES.SERVICES_UPDATE } satisfies GuardOptions,
     delete: { roles: "admin", scopes: SCOPES.SERVICES_DELETE } satisfies GuardOptions,
   },
+  panel: {
+    appointmentsList: {
+      roles: ["user", "supervisor"],
+      lightAuth: true,
+      requireEmailVerified: true,
+    } satisfies GuardOptions,
+    enrollmentsList: {
+      roles: ["user", "supervisor"],
+      lightAuth: true,
+    } satisfies GuardOptions,
+    courseApply: {
+      roles: "user",
+      lightAuth: true,
+      requireEmailVerified: true,
+    } satisfies GuardOptions,
+  },
+  supervisor: {
+    courses: {
+      roles: "supervisor",
+      lightAuth: true,
+      requireEmailVerified: true,
+    } satisfies GuardOptions,
+    availability: {
+      roles: "supervisor",
+      lightAuth: true,
+      requireEmailVerified: true,
+    } satisfies GuardOptions,
+  },
+  appointments: {
+    list: { roles: "admin", scopes: SCOPES.APPOINTMENTS_LIST } satisfies GuardOptions,
+    update: { roles: "admin", scopes: SCOPES.APPOINTMENTS_UPDATE } satisfies GuardOptions,
+  },
+  invites: {
+    list: { roles: "admin", scopes: SCOPES.SUPERVISORS_CREATE } satisfies GuardOptions,
+    create: { roles: "admin", scopes: SCOPES.SUPERVISORS_CREATE } satisfies GuardOptions,
+    delete: { roles: "admin", scopes: SCOPES.SUPERVISORS_CREATE } satisfies GuardOptions,
+  },
+  applications: {
+    list: { roles: "admin", scopes: SCOPES.SUPERVISORS_CREATE } satisfies GuardOptions,
+    invite: { roles: "admin", scopes: SCOPES.SUPERVISORS_CREATE } satisfies GuardOptions,
+  },
+  courses: {
+    list: { roles: "admin", scopes: SCOPES.SUPERVISORS_LIST } satisfies GuardOptions,
+  },
+  users: {
+    list: { roles: "admin", scopes: SCOPES.USERS_LIST } satisfies GuardOptions,
+    update: { roles: "admin", scopes: SCOPES.USERS_LIST } satisfies GuardOptions,
+  },
+  blog: {
+    list: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
+    write: { roles: "admin", scopes: SCOPES.SETTINGS_UPDATE } satisfies GuardOptions,
+  },
+  content: {
+    messages: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
+    newsletter: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
+  },
   admins: {
     list: { roles: "admin", scopes: SCOPES.ADMINS_LIST, adminPanelOnly: true } satisfies GuardOptions,
     create: { roles: "admin", scopes: SCOPES.ADMINS_CREATE, adminPanelOnly: true } satisfies GuardOptions,

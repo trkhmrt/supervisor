@@ -3,7 +3,8 @@ export type UserRole = "user" | "supervisor" | "admin";
 export type AuthSource = "supabase" | "adminpanel";
 
 export interface User {
-  id: string;
+  id: number;
+  supabaseAuthId?: string | null;
   email: string;
   fullName: string;
   role: UserRole;
@@ -11,6 +12,7 @@ export interface User {
   emailVerified: boolean;
   createdAt: string;
   password?: string;
+  phone?: string;
   profession?: string;
   experienceYears?: number;
   license?: string;
@@ -27,7 +29,7 @@ export type SessionUser = User & {
 
 export interface Supervisor {
   id: string;
-  userId?: string;
+  userId?: number;
   fullName: string;
   title: string;
   photo: string;
@@ -47,10 +49,31 @@ export interface Supervisor {
 export interface AvailabilitySlot {
   id: string;
   supervisorId: string;
+  /** Gün (YYYY-MM-DD) — UI */
   date: string;
   startTime: string;
   endTime: string;
+  /** ISO — veritabanı */
+  startsAt: string;
+  endsAt: string;
   isBooked: boolean;
+}
+
+/** Süpervizör takvim paneli — tek gün özeti */
+export interface SupervisorCalendarDayView {
+  date: string;
+  /** Veritabanında açık kayıt; yoksa slotlardan çıkarılır */
+  available: boolean | null;
+  freeCount: number;
+  bookedCount: number;
+  slots: AvailabilitySlot[];
+}
+
+export interface SupervisorCalendarMonthResponse {
+  year: number;
+  month: number;
+  days: SupervisorCalendarDayView[];
+  defaultTimes: string[];
 }
 
 export type AppointmentStatus =
@@ -64,13 +87,15 @@ export interface Appointment {
   id: string;
   supervisorId: string;
   supervisorName: string;
-  superviseeId?: string;
+  userId?: number;
   superviseeName: string;
   superviseeEmail: string;
   serviceType: string;
   date: string;
   startTime: string;
   endTime: string;
+  startsAt: string;
+  endsAt: string;
   status: AppointmentStatus;
   meetLink?: string;
   paymentApproved: boolean;
@@ -127,14 +152,85 @@ export interface SupervisorInvite {
   token: string;
   email: string;
   invitedAt: string;
+  expiresAt: string;
   acceptedAt?: string;
   status: "pending" | "accepted" | "expired";
+  applicationId?: string | null;
+  expired?: boolean;
+}
+
+export type SupervisorApplicationStatus = "pending" | "invited" | "rejected";
+
+export interface SupervisorApplication {
+  id: string;
+  fullName: string;
+  email: string;
+  message?: string | null;
+  status: SupervisorApplicationStatus;
+  createdAt: string;
 }
 
 export interface NewsletterSubscriber {
   id: string;
   email: string;
   subscribedAt: string;
+}
+
+export type CourseEnrollmentStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface Course {
+  id: string;
+  supervisorId: string;
+  title: string;
+  slug: string;
+  description: string;
+  active: boolean;
+  acceptsApplications: boolean;
+  maxParticipants?: number | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  createdAt: string;
+  enrollmentCount?: number;
+  pendingCount?: number;
+}
+
+/** Admin listesi — süpervizör adı ile */
+export interface AdminCourse extends Course {
+  supervisorName: string;
+}
+
+export interface SupervisorAdminCourseSummary {
+  id: string;
+  title: string;
+  slug: string;
+  active: boolean;
+  acceptsApplications: boolean;
+  enrollmentCount: number;
+  createdAt: string;
+}
+
+/** Admin süpervizör detay sayfası */
+export interface SupervisorAdminDetail extends Supervisor {
+  accountEmail?: string | null;
+  emailVerified?: boolean;
+  appointmentCount: number;
+  courses: SupervisorAdminCourseSummary[];
+}
+
+export interface CourseEnrollment {
+  id: string;
+  courseId: string;
+  userId: number;
+  status: CourseEnrollmentStatus;
+  message?: string | null;
+  createdAt: string;
+  user?: {
+    id: number;
+    fullName: string;
+    email: string;
+    profession?: string | null;
+  };
+  course?: Pick<Course, "id" | "title" | "slug" | "supervisorId">;
 }
 
 export interface ContactMessage {

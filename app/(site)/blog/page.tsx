@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, Search, Clock, Calendar } from "lucide-react";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
-import { useAppStore } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
+import type { BlogPost } from "@/lib/types";
 
 export default function BlogPage() {
-  const posts = useAppStore((s) => s.blogPosts.filter((p) => p.published));
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    void fetch("/api/blog")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: BlogPost[]) => setPosts(data))
+      .catch(() => setPosts([]));
+  }, []);
 
   const categories = Array.from(new Set(posts.map((p) => p.category)));
 

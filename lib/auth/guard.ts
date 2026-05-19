@@ -4,16 +4,17 @@ import { createClient } from "@/lib/supabase/server";
 import { verifyAdminToken, ADMIN_SESSION_COOKIE } from "@/lib/auth/admin-token";
 import { hasRole, hasScope, type Scope } from "@/lib/auth/permissions";
 import { loadUserScopes } from "@/lib/auth/user-scopes";
-import { syncSupabaseUser } from "@/lib/auth/sync-user";
+import { lookupPrismaUserBySupabase, syncSupabaseUser } from "@/lib/auth/sync-user";
 import type { UserRole } from "@/lib/types";
 
 export type AuthContext = {
-  userId: string;
+  userId: number;
   email: string;
   role: UserRole;
   isSuperAdmin: boolean;
   scopes: Scope[];
   source: "adminpanel" | "supabase";
+  emailVerified?: boolean;
 };
 
 export type GuardOptions = {
@@ -21,6 +22,13 @@ export type GuardOptions = {
   scopes?: Scope | Scope[];
   /** Sadece adminpanel JWT (e-posta/şifre) kabul et */
   adminPanelOnly?: boolean;
+  /**
+   * Panel okuma API: kullanıcı lookup + tek sorgu; sync/metadata/scope DB atlanır.
+   * Yalnızca `roles` kontrolü olan route'larda kullanın.
+   */
+  lightAuth?: boolean;
+  /** Supabase oturumunda e-posta doğrulanmamışsa 403 */
+  requireEmailVerified?: boolean;
 };
 
 type GuardFail = { ok: false; status: number; error: string };
@@ -39,13 +47,38 @@ export async function authorize(options: GuardOptions = {}): Promise<GuardOk | G
       return { ok: false, status: 403, error: "Admin paneline erişim yok." };
     }
 
+    const userId = Number.parseInt(payload.sub, 10);
+    if (!Number.isFinite(userId)) {
+      return { ok: false, status: 401, error: "Admin oturumu geçersiz." };
+    }
+
+    const roleList = options.roles
+      ? Array.isArray(options.roles)
+        ? options.roles
+        : [options.roles]
+      : [];
+    const needsFreshScopes =
+      options.scopes != null || roleList.includes("admin");
+
+    let isSuperAdmin = payload.isSuperAdmin;
+    let scopes = payload.scopes;
+    let role: UserRole = payload.role;
+
+    if (needsFreshScopes) {
+      const loaded = await loadUserScopes(userId);
+      role = loaded.role;
+      isSuperAdmin = loaded.isSuperAdmin;
+      scopes = loaded.scopes;
+    }
+
     const auth: AuthContext = {
-      userId: payload.sub,
+      userId,
       email: payload.email,
-      role: payload.role,
-      isSuperAdmin: payload.isSuperAdmin,
-      scopes: payload.scopes,
+      role,
+      isSuperAdmin,
+      scopes,
       source: "adminpanel",
+      emailVerified: true,
     };
 
     return checkAuth(auth, options);
@@ -64,16 +97,38 @@ export async function authorize(options: GuardOptions = {}): Promise<GuardOk | G
     return { ok: false, status: 401, error: "Oturum gerekli." };
   }
 
-  const appUser = await syncSupabaseUser(user);
-  const { scopes, isSuperAdmin } = await loadUserScopes(appUser.id);
+  let appUser = await lookupPrismaUserBySupabase(user);
+  if (!appUser) {
+    appUser = await syncSupabaseUser(user, { syncMetadata: true });
+  }
+
+  let role = appUser.role;
+  let isSuperAdmin = appUser.isSuperAdmin ?? false;
+  let scopes: Scope[] = [];
+
+  const roleList = options.roles
+    ? Array.isArray(options.roles)
+      ? options.roles
+      : [options.roles]
+    : [];
+  const needsScopes =
+    !options.lightAuth && (options.scopes != null || roleList.includes("admin"));
+
+  if (needsScopes) {
+    const loaded = await loadUserScopes(appUser.id);
+    role = loaded.role;
+    isSuperAdmin = loaded.isSuperAdmin;
+    scopes = loaded.scopes;
+  }
 
   const auth: AuthContext = {
     userId: appUser.id,
     email: appUser.email,
-    role: appUser.role,
+    role,
     isSuperAdmin,
     scopes,
     source: "supabase",
+    emailVerified: appUser.emailVerified,
   };
 
   return checkAuth(auth, options);
@@ -89,6 +144,18 @@ function checkAuth(auth: AuthContext, options: GuardOptions): GuardOk | GuardFai
     if (!superAdmin && !hasScope(auth.scopes, options.scopes)) {
       return { ok: false, status: 403, error: "Bu işlem için yetkiniz yok." };
     }
+  }
+
+  if (
+    options.requireEmailVerified &&
+    auth.source === "supabase" &&
+    auth.emailVerified === false
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      error: "E-postanızı doğrulamanız gerekiyor. Gelen kutunuzu kontrol edin.",
+    };
   }
 
   return { ok: true, auth };

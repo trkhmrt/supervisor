@@ -3,19 +3,59 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, notFound } from "next/navigation";
-import { Twitter, Facebook, Linkedin, Link2, Calendar, Clock, User, ArrowLeft, Share2 } from "lucide-react";
-import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
-import { useAppStore } from "@/lib/store";
+import { useEffect, useState } from "react";
+import { Twitter, Facebook, Linkedin, Link2, Calendar, Clock, User, ArrowLeft, Share2, Loader2 } from "lucide-react";
+import { Reveal } from "@/components/motion/Reveal";
 import { formatDate } from "@/lib/utils";
+import { blogContentToHtml } from "@/lib/blog-content";
+import type { BlogPost } from "@/lib/types";
 
 export default function BlogPostPage() {
   const params = useParams<{ slug: string }>();
-  const post = useAppStore((s) => s.blogPosts.find((p) => p.slug === params.slug));
-  const otherPosts = useAppStore((s) =>
-    s.blogPosts.filter((p) => p.published && p.slug !== params.slug).slice(0, 3)
-  );
+  const slug = params.slug;
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [otherPosts, setOtherPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [missing, setMissing] = useState(false);
 
-  if (!post) notFound();
+  useEffect(() => {
+    if (!slug) return;
+    setLoading(true);
+    setMissing(false);
+    void Promise.all([
+      fetch(`/api/blog/${slug}`).then(async (r) => {
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error("load");
+        return r.json() as Promise<BlogPost>;
+      }),
+      fetch("/api/blog")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((list: BlogPost[]) => list.filter((p) => p.slug !== slug).slice(0, 3)),
+    ])
+      .then(([article, others]) => {
+        if (!article) {
+          setMissing(true);
+          setPost(null);
+        } else {
+          setPost(article);
+          setOtherPosts(others);
+        }
+      })
+      .catch(() => setMissing(true))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-navy-400" />
+      </div>
+    );
+  }
+
+  if (missing || !post) notFound();
+
+  const contentHtml = blogContentToHtml(post.content);
 
   return (
       <article className="bg-white">
@@ -93,7 +133,7 @@ export default function BlogPostPage() {
                        <p className="text-xl text-navy-900 font-medium leading-relaxed mb-12">
                           {post.excerpt}
                        </p>
-                       <div className="text-clinical-text leading-loose space-y-8" dangerouslySetInnerHTML={{ __html: post.content }} />
+                       <div className="text-clinical-text leading-loose space-y-8" dangerouslySetInnerHTML={{ __html: contentHtml }} />
                     </div>
                     
                     <div className="mt-20 pt-12 border-t border-clinical-border flex items-center justify-between">

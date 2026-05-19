@@ -15,6 +15,8 @@ import {
 import type { Appointment } from "@/lib/types";
 import { useCurrentUser } from "@/lib/store";
 import type { Service, Supervisor } from "@/lib/types";
+import { MonthCalendarGrid } from "@/components/calendar/MonthCalendarGrid";
+import { bookingDayStatusFromSlots } from "@/lib/calendar-booking";
 import { formatPrice } from "@/lib/utils";
 
 export function BookingPanel({
@@ -80,7 +82,9 @@ export function BookingPanel({
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [weekIndex, setWeekIndex] = useState(0);
+  const now = new Date();
+  const [calYear, setCalYear] = useState(now.getUTCFullYear());
+  const [calMonth, setCalMonth] = useState(now.getUTCMonth() + 1);
 
   const service =
     serviceOverride ??
@@ -99,21 +103,12 @@ export function BookingPanel({
     return map;
   }, [supervisor]);
 
-  const dates = Object.keys(groupedByDate).slice(0, 14);
-  const maxWeek = Math.max(0, Math.ceil(dates.length / 7) - 1);
-  const visibleDates = dates.slice(weekIndex * 7, weekIndex * 7 + 7);
+  const hasBookableSlots = supervisor?.availability.some((s) => !s.isBooked) ?? false;
 
   useEffect(() => {
-    if (!dates.length) return;
-    setSelectedDate((prev) => prev ?? dates[0]);
-  }, [dates]);
-
-  useEffect(() => {
-    if (!visibleDates.length) return;
-    if (selectedDate && visibleDates.includes(selectedDate)) return;
-    setSelectedDate(visibleDates[0]);
-    setSelectedSlot(null);
-  }, [selectedDate, visibleDates]);
+    const first = Object.keys(groupedByDate).sort()[0];
+    if (first) setSelectedDate((prev) => prev ?? first);
+  }, [groupedByDate]);
 
   if (!remoteReady && !supervisorOverride) {
     return (
@@ -121,11 +116,6 @@ export function BookingPanel({
     );
   }
   if (!supervisor || !service) return null;
-
-  const selectedDateObj = selectedDate ? new Date(selectedDate) : null;
-  const monthTitle = selectedDateObj
-    ? selectedDateObj.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })
-    : "Takvim";
 
   const daySlots = selectedDate ? groupedByDate[selectedDate] ?? [] : [];
   const morningSlots = daySlots.filter((slot) => Number(slot.startTime.split(":")[0]) < 12);
@@ -147,59 +137,23 @@ export function BookingPanel({
                 Randevu Al
               </h3>
 
-              <div className="flex items-center justify-between">
-                <div className="text-3xl font-bold capitalize text-black">{monthTitle}</div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setWeekIndex((prev) => Math.max(0, prev - 1))}
-                    disabled={weekIndex === 0}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-clinical-border text-black transition disabled:cursor-not-allowed disabled:opacity-35"
-                    aria-label="Onceki hafta"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWeekIndex((prev) => Math.min(maxWeek, prev + 1))}
-                    disabled={weekIndex >= maxWeek}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-clinical-border text-black transition disabled:cursor-not-allowed disabled:opacity-35"
-                    aria-label="Sonraki hafta"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-7 gap-2 text-center">
-                {visibleDates.map((date) => {
-                  const dayDate = new Date(date);
-                  const isSelected = selectedDate === date;
-
-                  return (
-                    <button
-                      key={date}
-                      type="button"
-                      onClick={() => {
-                        setSelectedDate(date);
-                        setSelectedSlot(null);
-                      }}
-                      className="space-y-2"
-                    >
-                      <div className="text-xs font-bold uppercase tracking-widest text-clinical-muted">
-                        {dayDate.toLocaleDateString("tr-TR", { weekday: "short" })}
-                      </div>
-                      <div
-                        className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-bold transition ${
-                          isSelected ? "bg-black text-white" : "bg-white text-black"
-                        }`}
-                      >
-                        {dayDate.getDate()}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              <MonthCalendarGrid
+                year={calYear}
+                month={calMonth}
+                selectedDate={selectedDate}
+                legend
+                getStatus={(date) =>
+                  bookingDayStatusFromSlots(date, supervisor.availability)
+                }
+                onMonthChange={(y, m) => {
+                  setCalYear(y);
+                  setCalMonth(m);
+                }}
+                onDayClick={(date) => {
+                  setSelectedDate(date);
+                  setSelectedSlot(null);
+                }}
+              />
             </section>
 
             <section>
@@ -389,7 +343,7 @@ export function BookingPanel({
                         supervisorId: supervisor.id,
                         superviseeEmail: trimmedEmail,
                         superviseeName: fullName.trim() || trimmedEmail.split("@")[0],
-                        superviseeId: user?.id,
+                        userId: user?.id,
                         serviceType: service.id,
                         date: selectedDate,
                         startTime: selectedSlot!.start,
@@ -452,7 +406,7 @@ export function BookingPanel({
             </div>
 
             <div className="flex flex-wrap justify-center gap-4">
-              <Link href="/panelim" className="btn-navy">
+              <Link href="/dashboard" className="btn-navy">
                 Panelime Git
               </Link>
               <Link href="/" className="btn-outline-navy">

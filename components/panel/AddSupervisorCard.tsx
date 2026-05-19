@@ -32,7 +32,7 @@ export function AddSupervisorCard({ user }: { user: User }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user.id,
+          "x-user-id": String(user.id),
           "x-user-role": user.role,
         },
         body: JSON.stringify({

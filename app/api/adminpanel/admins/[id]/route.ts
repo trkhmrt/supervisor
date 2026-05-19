@@ -6,12 +6,18 @@ import { SCOPES, type Scope } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { setUserScopes, loadUserScopes } from "@/lib/auth/user-scopes";
+import { parseUserIdParam } from "@/lib/auth/user-id";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export const PATCH = withAuth(
   async (req, _auth, ctx: Ctx) => {
-    const { id } = await ctx.params;
+    const { id: idParam } = await ctx.params;
+    const id = parseUserIdParam(idParam);
+    if (id === null) {
+      return NextResponse.json({ error: "Geçersiz admin kimliği." }, { status: 400 });
+    }
+
     const body = (await req.json()) as {
       fullName?: string;
       password?: string;
@@ -60,7 +66,12 @@ export const PATCH = withAuth(
 
 export const DELETE = withAuth(
   async (_req, auth, ctx: Ctx) => {
-    const { id } = await ctx.params;
+    const { id: idParam } = await ctx.params;
+    const id = parseUserIdParam(idParam);
+    if (id === null) {
+      return NextResponse.json({ error: "Geçersiz admin kimliği." }, { status: 400 });
+    }
+
     if (id === auth.userId) {
       return NextResponse.json({ error: "Kendi hesabınızı silemezsiniz." }, { status: 400 });
     }

@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { UserPlus, Mail, Check, Trash2, ShieldCheck, MoreVertical, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AdminTabBar } from "@/components/admin/AdminTabBar";
+import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
+import Link from "next/link";
+import { UserPlus, Mail, Check, Trash2, ShieldCheck, MoreVertical, Loader2, ChevronRight } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { useAppStore } from "@/lib/store";
+import { SupervisorApplicationsCard } from "@/components/admin/SupervisorApplicationsCard";
 import { formatDate } from "@/lib/utils";
-import type { Supervisor } from "@/lib/types";
+import type { Supervisor, SupervisorApplication, SupervisorInvite } from "@/lib/types";
 
 async function fetchSupervisors(): Promise<Supervisor[]> {
   const r = await fetch("/api/admin/supervisors");
@@ -14,16 +17,21 @@ async function fetchSupervisors(): Promise<Supervisor[]> {
 }
 
 export default function AdminSupervisors() {
-  const invites = useAppStore((s) => s.invites);
-  const inviteSupervisor = useAppStore((s) => s.inviteSupervisor);
-  const removeInvite = useAppStore((s) => s.removeInvite);
-
+  const [invites, setInvites] = useState<(SupervisorInvite & { inviteUrl?: string })[]>([]);
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
   const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [applications, setApplications] = useState<SupervisorApplication[]>([]);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"supervisors" | "applications" | "invites">("supervisors");
+  const [supSearch, setSupSearch] = useState("");
+  const [appStatus, setAppStatus] = useState("");
+  const [appSearch, setAppSearch] = useState("");
+  const [inviteStatus, setInviteStatus] = useState("");
 
   const [form, setForm] = useState({
     fullName: "",
@@ -40,8 +48,26 @@ export default function AdminSupervisors() {
     setError(null);
     setLoading(true);
     try {
-      const data = await fetchSupervisors();
+      const [data, invRes, appRes] = await Promise.all([
+        fetchSupervisors(),
+        fetch("/api/admin/invites", { credentials: "include" }),
+        fetch("/api/admin/supervisor-applications", { credentials: "include" }),
+      ]);
       setSupervisors(data);
+      if (invRes.ok) {
+        setInvites(await invRes.json());
+      }
+      if (appRes.ok) {
+        setApplications(await appRes.json());
+      } else {
+        const appErr = (await appRes.json().catch(() => ({}))) as { error?: string };
+        setApplications([]);
+        if (appErr.error) {
+          setError((prev) =>
+            prev ? `${prev} · Talepler: ${appErr.error}` : `Süpervizör talepleri: ${appErr.error}`
+          );
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Liste yüklenemedi");
       setSupervisors([]);
@@ -54,13 +80,26 @@ export default function AdminSupervisors() {
     reload();
   }, [reload]);
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    inviteSupervisor(email);
-    setEmail("");
-    setSent(true);
-    setTimeout(() => setSent(false), 3000);
+    try {
+      const res = await fetch("/api/admin/invites", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const j = (await res.json()) as { error?: string; inviteUrl?: string };
+      if (!res.ok) throw new Error(j.error ?? "Davet gönderilemedi");
+      setLastInviteUrl(j.inviteUrl ?? null);
+      setEmail("");
+      setSent(true);
+      await reload();
+      setTimeout(() => setSent(false), 5000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Davet gönderilemedi");
+    }
   };
 
   const handleCreateSupervisor = async (e: React.FormEvent) => {
@@ -107,6 +146,39 @@ export default function AdminSupervisors() {
       setCreating(false);
     }
   };
+
+  const filteredSupervisors = useMemo(() => {
+    const q = supSearch.trim().toLowerCase();
+    if (!q) return supervisors;
+    return supervisors.filter(
+      (s) =>
+        s.fullName.toLowerCase().includes(q) ||
+        s.title.toLowerCase().includes(q) ||
+        s.expertise.some((e) => e.toLowerCase().includes(q))
+    );
+  }, [supervisors, supSearch]);
+
+  const filteredApplications = useMemo(() => {
+    let items = applications;
+    if (appStatus) items = items.filter((a) => a.status === appStatus);
+    const q = appSearch.trim().toLowerCase();
+    if (q) {
+      items = items.filter(
+        (a) =>
+          a.fullName.toLowerCase().includes(q) ||
+          a.email.toLowerCase().includes(q) ||
+          (a.message?.toLowerCase().includes(q) ?? false)
+      );
+    }
+    return items;
+  }, [applications, appStatus, appSearch]);
+
+  const filteredInvites = useMemo(() => {
+    if (!inviteStatus) return invites;
+    return invites.filter((i) => i.status === inviteStatus);
+  }, [invites, inviteStatus]);
+
+  const pendingAppCount = applications.filter((a) => a.status === "pending").length;
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bu süpervizörü silmek istediğinize emin misiniz?")) return;
@@ -157,6 +229,11 @@ export default function AdminSupervisors() {
               <button type="submit" className="btn-white w-full py-3 text-xs">
                 {sent ? <Check className="h-4 w-4" /> : "Davet Gönder"}
               </button>
+              {lastInviteUrl && (
+                <p className="mt-3 break-all text-[10px] text-navy-300">
+                  Link: {lastInviteUrl}
+                </p>
+              )}
             </form>
           </div>
 
@@ -240,13 +317,82 @@ export default function AdminSupervisors() {
         </div>
 
         <div className="lg:col-span-8">
-          <div className="card-premium">
-            <h3 className="text-xs font-bold text-navy-900 uppercase tracking-widest mb-8">Bekleyen Davetler</h3>
+          <AdminTabBar
+            active={tab}
+            onChange={(id) => setTab(id as typeof tab)}
+            tabs={[
+              { id: "supervisors", label: "Süpervizörler", count: supervisors.length },
+              { id: "applications", label: "Talepler", count: pendingAppCount || undefined },
+              { id: "invites", label: "Davetler", count: invites.filter((i) => i.status === "pending").length || undefined },
+            ]}
+          />
+
+          {tab === "applications" && (
+            <>
+              <AdminFilterBar
+                search={appSearch}
+                onSearchChange={setAppSearch}
+                searchPlaceholder="Ad veya e-posta ara…"
+                selectLabel="Durum"
+                selectValue={appStatus}
+                selectOptions={[
+                  { value: "", label: "Tümü" },
+                  { value: "pending", label: "Bekliyor" },
+                  { value: "invited", label: "Davet gönderildi" },
+                  { value: "rejected", label: "Reddedildi" },
+                ]}
+                onSelectChange={setAppStatus}
+              />
+              <SupervisorApplicationsCard
+                embedded
+                applications={filteredApplications}
+                invitingId={invitingId}
+                onInvite={async (id) => {
+                  setInvitingId(id);
+                  setError(null);
+                  try {
+                    const res = await fetch(`/api/admin/supervisor-applications/${id}/invite`, {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    const j = (await res.json()) as { error?: string; inviteUrl?: string };
+                    if (!res.ok) throw new Error(j.error ?? "Davet gönderilemedi");
+                    if (j.inviteUrl) setLastInviteUrl(j.inviteUrl);
+                    await reload();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Davet gönderilemedi");
+                  } finally {
+                    setInvitingId(null);
+                  }
+                }}
+              />
+            </>
+          )}
+
+          {tab === "invites" && (
+            <>
+              <div className="mb-6 max-w-xs">
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                  Durum
+                </label>
+                <select
+                  value={inviteStatus}
+                  onChange={(e) => setInviteStatus(e.target.value)}
+                  className="w-full rounded-premium border border-clinical-border px-3 py-2.5 text-sm"
+                >
+                  <option value="">Tümü</option>
+                  <option value="pending">Bekliyor</option>
+                  <option value="accepted">Kabul edildi</option>
+                  <option value="expired">Süresi doldu</option>
+                </select>
+              </div>
+              <div className="card-premium">
+            <h3 className="text-xs font-bold text-navy-900 uppercase tracking-widest mb-8">Davetler</h3>
             <div className="divide-y divide-clinical-border">
-              {invites.length === 0 ? (
+              {filteredInvites.length === 0 ? (
                 <p className="py-8 text-center text-clinical-muted text-sm">Bekleyen davet bulunmuyor.</p>
               ) : (
-                invites.map((inv) => (
+                filteredInvites.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between py-4 group">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-clinical-light rounded-full flex items-center justify-center text-navy-900">
@@ -270,7 +416,14 @@ export default function AdminSupervisors() {
                         {inv.status === "accepted" ? "Kabul Edildi" : "Bekliyor"}
                       </span>
                       <button
-                        onClick={() => removeInvite(inv.id)}
+                        type="button"
+                        onClick={async () => {
+                          await fetch(`/api/admin/invites/${inv.id}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                          });
+                          await reload();
+                        }}
                         className="p-2 text-clinical-muted transition-colors hover:text-black"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -281,8 +434,17 @@ export default function AdminSupervisors() {
               )}
             </div>
           </div>
+            </>
+          )}
 
-          <div className="mt-8 card-premium">
+          {tab === "supervisors" && (
+            <>
+              <AdminFilterBar
+                search={supSearch}
+                onSearchChange={setSupSearch}
+                searchPlaceholder="Ad, unvan veya uzmanlık ara…"
+              />
+              <div className="card-premium">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xs font-bold text-navy-900 uppercase tracking-widest">Kayıtlı Süpervizörler</h3>
               <a href="/supervizorler" target="_blank" rel="noreferrer" className="text-[10px] font-bold text-navy-500 hover:text-navy-900 uppercase tracking-widest">
@@ -290,7 +452,7 @@ export default function AdminSupervisors() {
               </a>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              {supervisors.map((s) => (
+              {filteredSupervisors.map((s) => (
                 <div
                   key={s.id}
                   className="flex items-center gap-4 p-4 bg-clinical-light rounded-premium border border-clinical-border group hover:border-navy-900 transition-all"
@@ -298,13 +460,16 @@ export default function AdminSupervisors() {
                   <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white shadow-sm">
                     <img src={s.photo} alt={s.fullName} className="object-cover w-full h-full" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-navy-900 truncate">{s.fullName}</div>
+                  <Link href={`/admin/supervizorler/${s.id}`} className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-navy-900 truncate group-hover:underline">{s.fullName}</div>
                     <div className="text-[10px] text-clinical-muted font-bold uppercase tracking-widest truncate">
                       {s.title}
                     </div>
-                  </div>
+                  </Link>
                   <div className="flex items-center gap-1">
+                    <Link href={`/admin/supervizorler/${s.id}`} className="p-2 text-navy-600 hover:text-navy-900" title="Detay">
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
                     <button
                       type="button"
                       onClick={() => handleDelete(s.id)}
@@ -313,19 +478,20 @@ export default function AdminSupervisors() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                    <span className="p-2 text-clinical-muted">
-                      <MoreVertical className="h-4 w-4" />
-                    </span>
                   </div>
                 </div>
               ))}
             </div>
-            {!loading && supervisors.length === 0 && (
+            {!loading && filteredSupervisors.length === 0 && (
               <p className="mt-6 text-center text-sm text-clinical-muted">
-                Henüz süpervizör yok. Veritabanı bağlantısı yoksa önce .env.local içinde DATABASE_URL ayarlayın.
+                {supervisors.length === 0
+                  ? "Henüz süpervizör yok."
+                  : "Filtreye uygun süpervizör bulunamadı."}
               </p>
             )}
           </div>
+            </>
+          )}
         </div>
       </div>
     </AdminShell>

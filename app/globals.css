@@ -44,46 +44,13 @@ body {
 
   /* Premium Cards */
   .card-premium {
-    @apply relative overflow-hidden rounded-premium border border-neutral-300 bg-[#f1f0f0] p-8 transition-all duration-500 hover:shadow-premium-hover hover:border-neutral-400;
+    @apply relative overflow-hidden rounded-premium border border-neutral-300 bg-[#f1f0f0] p-8;
     isolation: isolate;
-  }
-  .card-premium::before {
-    content: "";
-    position: absolute;
-    top: -120%;
-    left: -160%;
-    width: 120%;
-    height: 320%;
-    z-index: 0;
-    pointer-events: none;
-    background: linear-gradient(
-      115deg,
-      transparent 25%,
-      rgba(255, 255, 255, 0.52) 46%,
-      rgba(255, 255, 255, 0.15) 52%,
-      transparent 70%
-    );
-    transform: rotate(12deg) translateX(0);
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-  .card-premium:hover::before {
-    opacity: 1;
-    animation: card-glare-sweep 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 1;
-  }
-  .card-premium > * {
-    position: relative;
-    z-index: 1;
   }
   .card-clickable {
     @apply cursor-pointer;
   }
-  .card-no-glare::before {
-    opacity: 0 !important;
-    animation: none !important;
-  }
   .card-flat-hover {
-    @apply hover:border-neutral-300 hover:shadow-none;
     transform: none !important;
   }
   .service-title-highlight {
@@ -177,15 +144,6 @@ body {
   }
   100% {
     background-position: 0% 50%;
-  }
-}
-
-@keyframes card-glare-sweep {
-  0% {
-    transform: rotate(12deg) translateX(0);
-  }
-  100% {
-    transform: rotate(12deg) translateX(270%);
   }
 }
 

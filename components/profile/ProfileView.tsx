@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Shield } from "lucide-react";
 import { roleLabel, scopeDescription } from "@/lib/auth/display";
 import { formatDate } from "@/lib/utils";
+import { PasswordChangeForm } from "@/components/profile/PasswordChangeForm";
 import type { SessionUser } from "@/lib/types";
 
 type ProfileViewProps = {
@@ -14,6 +15,9 @@ type ProfileViewProps = {
 export function ProfileView({ user, variant }: ProfileViewProps) {
   const scopes = user.scopes ?? [];
   const isAdmin = user.role === "admin";
+  const canChangePassword =
+    (variant === "panel" && (user.role === "user" || user.role === "supervisor")) ||
+    (variant === "adminpanel" && user.authSource === "adminpanel" && isAdmin);
 
   return (
     <>
@@ -103,14 +107,27 @@ export function ProfileView({ user, variant }: ProfileViewProps) {
 
         <div className="card-premium h-fit">
           <h3 className="text-xs font-bold uppercase tracking-widest text-navy-900">Güvenlik</h3>
-          <p className="mt-3 text-sm text-clinical-muted">
-            {variant === "adminpanel"
-              ? "Admin panel şifrenizi değiştirmek veya hesap ayarları için süper admin ile iletişime geçin."
-              : "Şifrenizi değiştirmek veya hesabınızı silmek için destek ekibiyle iletişime geçin."}
-          </p>
-          <Link href="/iletisim" className="btn-outline-navy mt-6 w-full py-3 text-xs">
-            Destek Talebi Aç
-          </Link>
+          {canChangePassword ? (
+            <>
+              <p className="mt-3 text-sm text-clinical-muted">
+                {user.role === "supervisor"
+                  ? "Şifrenizi buradan güncelleyebilirsiniz. Davet ile gelen geçici şifreyi değiştirmenizi öneririz."
+                  : variant === "adminpanel"
+                    ? "Admin panel giriş şifrenizi buradan güncelleyebilirsiniz."
+                    : "Hesap şifrenizi buradan güncelleyebilirsiniz."}
+              </p>
+              <PasswordChangeForm />
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm text-clinical-muted">
+                Bu hesap türü için şifre değişikliği desteklenmiyor. Yardım için destek ile iletişime geçin.
+              </p>
+              <Link href="/iletisim" className="btn-outline-navy mt-6 w-full py-3 text-xs">
+                Destek Talebi Aç
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </>

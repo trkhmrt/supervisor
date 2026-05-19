@@ -11,7 +11,44 @@ import type {
   SupervisorInvite,
   User,
 } from "./types";
+import { sessionFromParts, sessionToParts, toIso } from "./datetime";
 import { addDaysISO } from "./utils";
+
+function isoDay(days: number): string {
+  return `${addDaysISO(days)}T12:00:00.000Z`;
+}
+
+function mockSlot(
+  supervisorId: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  id: string,
+  isBooked: boolean
+): AvailabilitySlot {
+  const session = sessionFromParts(date, startTime, endTime);
+  return {
+    id,
+    supervisorId,
+    ...sessionToParts(session.startsAt, session.endsAt),
+    isBooked,
+  };
+}
+
+function mockAppointment(
+  base: Omit<Appointment, "startsAt" | "endsAt"> & {
+    date: string;
+    startTime: string;
+    endTime: string;
+  }
+): Appointment {
+  const session = sessionFromParts(base.date, base.startTime, base.endTime);
+  return {
+    ...base,
+    startsAt: toIso(session.startsAt),
+    endsAt: toIso(session.endsAt),
+  };
+}
 
 export const SERVICES: Service[] = [
   {
@@ -99,7 +136,7 @@ export const SERVICES: Service[] = [
 export const SUPERVISORS: Supervisor[] = [
   {
     id: "sup-1",
-    userId: "user-sup-1",
+    userId: 2,
     fullName: "Abdullatif Ramazan Çelik",
     title: "Psikolog",
     photo: "/images/abdullatif.png",
@@ -122,7 +159,6 @@ export const SUPERVISORS: Supervisor[] = [
   },
   {
     id: "sup-2",
-    userId: "user-sup-2",
     fullName: "Dr. Ayşe Demir",
     title: "Klinik Psikolog",
     photo: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=600&q=80",
@@ -140,7 +176,6 @@ export const SUPERVISORS: Supervisor[] = [
   },
   {
     id: "sup-3",
-    userId: "user-sup-3",
     fullName: "Prof. Dr. Mehmet Kaya",
     title: "Psikiyatrist",
     photo: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&q=80",
@@ -170,14 +205,16 @@ function generateAvailabilityFor(supervisorId: string): AvailabilitySlot[] {
       const [h, m] = startTime.split(":").map(Number);
       const endTotal = h * 60 + m + 50;
       const endTime = `${String(Math.floor(endTotal / 60)).padStart(2, "0")}:${String(endTotal % 60).padStart(2, "0")}`;
-      slots.push({
-        id: `${supervisorId}-${date}-${idx}`,
-        supervisorId,
-        date,
-        startTime,
-        endTime,
-        isBooked: Math.random() < 0.2,
-      });
+      slots.push(
+        mockSlot(
+          supervisorId,
+          date,
+          startTime,
+          endTime,
+          `${supervisorId}-${date}-${idx}`,
+          Math.random() < 0.2
+        )
+      );
     });
   }
   return slots;
@@ -191,7 +228,7 @@ export const REVIEWS: Review[] = [
     rating: 5,
     comment:
       "Abdullatif Bey'in sakin, derinlikli yaklaşımı süpervizyon süreçlerimi kökten dönüştürdü. Vakaları farklı katmanlarda görmemi sağlıyor.",
-    createdAt: "2026-03-12",
+    createdAt: isoDay(-30),
   },
   {
     id: "r2",
@@ -200,7 +237,7 @@ export const REVIEWS: Review[] = [
     rating: 5,
     comment:
       "Yargılayıcı olmayan, güvenli bir alan. Hem mesleki hem kişisel olarak çok şey öğrendim.",
-    createdAt: "2026-02-28",
+    createdAt: isoDay(-45),
   },
   {
     id: "r3",
@@ -209,7 +246,7 @@ export const REVIEWS: Review[] = [
     rating: 4,
     comment:
       "Açıklamaları çok net, vakaya yaklaşımı zihin açıcı. Devam edeceğim.",
-    createdAt: "2026-01-19",
+    createdAt: isoDay(-60),
   },
   {
     id: "r4",
@@ -218,7 +255,7 @@ export const REVIEWS: Review[] = [
     rating: 5,
     comment:
       "Sistemik perspektif konusundaki ustalığı ve sıcak tavrı muhteşem.",
-    createdAt: "2026-02-04",
+    createdAt: isoDay(-50),
   },
 ];
 
@@ -236,7 +273,7 @@ export const BLOG_POSTS: BlogPost[] = [
     author: "Abdullatif Ramazan Çelik",
     category: "Süpervizyon",
     tags: ["süpervizyon", "terapist", "mesleki gelişim"],
-    publishedAt: "2026-04-12",
+    publishedAt: isoDay(30),
     readingTime: 6,
     published: true,
   },
@@ -253,7 +290,7 @@ export const BLOG_POSTS: BlogPost[] = [
     author: "Editor",
     category: "Süpervizyon",
     tags: ["grup", "akran"],
-    publishedAt: "2026-03-28",
+    publishedAt: isoDay(14),
     readingTime: 4,
     published: true,
   },
@@ -270,7 +307,7 @@ export const BLOG_POSTS: BlogPost[] = [
     author: "Dr. Ayşe Demir",
     category: "Etik",
     tags: ["etik", "süpervizyon"],
-    publishedAt: "2026-03-08",
+    publishedAt: isoDay(-5),
     readingTime: 7,
     published: true,
   },
@@ -287,18 +324,18 @@ export const BLOG_POSTS: BlogPost[] = [
     author: "Prof. Dr. Mehmet Kaya",
     category: "Eğitim",
     tags: ["simülasyon", "beceri"],
-    publishedAt: "2026-02-18",
+    publishedAt: isoDay(-25),
     readingTime: 5,
     published: true,
   },
 ];
 
 export const APPOINTMENTS: Appointment[] = [
-  {
+  mockAppointment({
     id: "a1",
     supervisorId: "sup-1",
     supervisorName: "Abdullatif Ramazan Çelik",
-    superviseeId: "u1",
+    userId: 3,
     superviseeName: "Zeynep Aydın",
     superviseeEmail: "zeynep@example.com",
     serviceType: "individual",
@@ -311,12 +348,12 @@ export const APPOINTMENTS: Appointment[] = [
     amount: 1500,
     notes: "İlk seans",
     createdAt: addDaysISO(-2),
-  },
-  {
+  }),
+  mockAppointment({
     id: "a2",
     supervisorId: "sup-2",
     supervisorName: "Dr. Ayşe Demir",
-    superviseeId: "u2",
+    userId: 4,
     superviseeName: "Mert Doğan",
     superviseeEmail: "mert@example.com",
     serviceType: "individual",
@@ -327,12 +364,12 @@ export const APPOINTMENTS: Appointment[] = [
     paymentApproved: false,
     amount: 1800,
     createdAt: addDaysISO(-1),
-  },
-  {
+  }),
+  mockAppointment({
     id: "a3",
     supervisorId: "sup-1",
     supervisorName: "Abdullatif Ramazan Çelik",
-    superviseeId: "u3",
+    userId: 5,
     superviseeName: "Selin Yıldız",
     superviseeEmail: "selin@example.com",
     serviceType: "individual",
@@ -344,12 +381,12 @@ export const APPOINTMENTS: Appointment[] = [
     paymentApproved: true,
     amount: 1500,
     createdAt: addDaysISO(-14),
-  },
+  }),
 ];
 
 export const USERS: User[] = [
   {
-    id: "admin-1",
+    id: 1,
     email: "admin@supervizyon.com",
     fullName: "Admin Kullanıcı",
     role: "admin",
@@ -358,7 +395,7 @@ export const USERS: User[] = [
     password: "admin123",
   },
   {
-    id: "user-sup-1",
+    id: 2,
     email: "abdullatif@supervizyon.com",
     fullName: "Abdullatif Ramazan Çelik",
     title: "Psikolog",
@@ -371,7 +408,7 @@ export const USERS: User[] = [
     password: "supervisor123",
   },
   {
-    id: "u1",
+    id: 3,
     email: "zeynep@example.com",
     fullName: "Zeynep Aydın",
     role: "user",
@@ -382,7 +419,7 @@ export const USERS: User[] = [
     password: "demo1234",
   },
   {
-    id: "u2",
+    id: 4,
     email: "mert@example.com",
     fullName: "Mert Doğan",
     role: "user",
@@ -392,6 +429,15 @@ export const USERS: User[] = [
     createdAt: addDaysISO(-12),
     password: "demo1234",
   },
+  {
+    id: 5,
+    email: "selin@example.com",
+    fullName: "Selin Yıldız",
+    role: "user",
+    emailVerified: true,
+    createdAt: addDaysISO(-20),
+    password: "demo1234",
+  },
 ];
 
 export const SUPERVISOR_INVITES: SupervisorInvite[] = [
@@ -399,7 +445,8 @@ export const SUPERVISOR_INVITES: SupervisorInvite[] = [
     id: "inv-1",
     token: "demo-invite-token",
     email: "yeni.supervizor@example.com",
-    invitedAt: addDaysISO(-1),
+    invitedAt: isoDay(-1),
+    expiresAt: isoDay(6),
     status: "pending",
   },
 ];
@@ -413,7 +460,7 @@ export const CONTACT_MESSAGES: ContactMessage[] = [
     email: "ali@example.com",
     subject: "Süpervizyon hakkında bilgi",
     message: "Grup süpervizyonuna nasıl katılabilirim?",
-    createdAt: addDaysISO(-2),
+    createdAt: isoDay(-2),
     read: false,
   },
 ];

@@ -92,8 +92,14 @@ export default function IletisimPage() {
                           setError("Lütfen zorunlu alanları doldurun.");
                           return;
                         }
-                        addContactMessage(form);
-                        setSent(true);
+                        void fetch("/api/contact", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(form),
+                        }).then((res) => {
+                          if (res.ok) setSent(true);
+                          else setError("Mesaj gönderilemedi.");
+                        });
                       }}
                       className="space-y-8"
                     >

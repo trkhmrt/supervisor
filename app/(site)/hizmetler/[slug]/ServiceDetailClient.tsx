@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
-import { formatPrice } from "@/lib/utils";
 import { BookingPanel } from "@/components/site/BookingPanel";
 import type { Service, Supervisor } from "@/lib/types";
 export function ServiceDetailClient({
@@ -213,10 +212,6 @@ function FeaturedSupervisorCard({
         <h3 className="h3-premium mb-4 sm:mb-6">{supervisor.fullName}</h3>
 
         <div className="mb-6 space-y-3 sm:mb-8 sm:space-y-4">
-          <div className="flex justify-between border-b border-clinical-border pb-3 text-sm sm:pb-4">
-            <span className="text-clinical-muted">Seans Ücreti</span>
-            <span className="font-bold text-navy-900">{formatPrice(supervisor.pricePerSession)}</span>
-          </div>
           <div className="flex justify-between border-b border-clinical-border pb-3 text-sm sm:pb-4">
             <span className="text-clinical-muted">Seans Süresi</span>
             <span className="font-bold text-navy-900">{serviceDuration} Dakika</span>
