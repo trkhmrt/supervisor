@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail, supervisorApplicationReceivedEmailHtml } from "@/lib/email/send";
+import { isValidPhone, normalizePhone } from "@/lib/validation/phone";
 import type { SupervisorApplication } from "@/lib/types";
 
 const INVITE_VALID_DAYS = 7;
@@ -12,6 +13,7 @@ function rowToApi(row: {
   id: string;
   fullName: string;
   email: string;
+  phone: string;
   message: string | null;
   status: "pending" | "invited" | "rejected";
   createdAt: Date;
@@ -20,6 +22,7 @@ function rowToApi(row: {
     id: row.id,
     fullName: row.fullName,
     email: row.email,
+    phone: row.phone,
     message: row.message,
     status: row.status,
     createdAt: row.createdAt.toISOString(),
@@ -36,13 +39,18 @@ export class ApplicationError extends Error {
 export async function createSupervisorApplication(input: {
   fullName: string;
   email: string;
+  phone: string;
   message?: string;
 }): Promise<SupervisorApplication> {
   const email = input.email.trim().toLowerCase();
   const fullName = input.fullName.trim();
+  const phone = normalizePhone(input.phone.trim());
 
   if (!fullName || !email.includes("@")) {
     throw new ApplicationError("Ad soyad ve geçerli e-posta zorunludur.");
+  }
+  if (!isValidPhone(phone)) {
+    throw new ApplicationError("Geçerli bir telefon numarası girin.");
   }
 
   const existingSupervisor = await prisma.user.findFirst({
@@ -63,6 +71,7 @@ export async function createSupervisorApplication(input: {
     data: {
       fullName,
       email,
+      phone,
       message: input.message?.trim() || null,
     },
   });

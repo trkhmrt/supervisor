@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { formatDate, readingTime } from "@/lib/utils";
-import type { BlogPost } from "@/lib/types";
+import type { BlogPost, Author } from "@/lib/types";
 
 const CATEGORIES = ["Genel", "Süpervizyon", "Klinik", "Etik", "Mesleki Gelişim"];
 
@@ -26,6 +26,7 @@ type FormState = {
   content: string;
   cover: string;
   author: string;
+  authorId: string;
   category: string;
   tags: string;
   readingTime: number;
@@ -40,6 +41,7 @@ const emptyForm = (): FormState => ({
   content: "",
   cover: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80",
   author: "",
+  authorId: "",
   category: "Genel",
   tags: "",
   readingTime: 5,
@@ -55,6 +57,7 @@ function postToForm(p: BlogPost): FormState {
     content: p.content,
     cover: p.cover,
     author: p.author,
+    authorId: p.authorId ?? "",
     category: p.category,
     tags: p.tags.join(", "),
     readingTime: p.readingTime,
@@ -74,15 +77,20 @@ export function AdminBlogManager() {
   const [statusFilter, setStatusFilter] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [authors, setAuthors] = useState<Author[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/blog", { credentials: "include" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Blog yazıları yüklenemedi");
+      const [blogRes, authorsRes] = await Promise.all([
+        fetch("/api/admin/blog", { credentials: "include" }),
+        fetch("/api/authors", { credentials: "include" }),
+      ]);
+      const data = await blogRes.json();
+      if (!blogRes.ok) throw new Error(data.error ?? "Blog yazıları yüklenemedi");
       setPosts(data);
+      if (authorsRes.ok) setAuthors(await authorsRes.json());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Hata");
       setPosts([]);
@@ -133,6 +141,7 @@ export function AdminBlogManager() {
       content: form.content.trim(),
       cover: form.cover.trim(),
       author: form.author.trim() || "Süpervizyon",
+      authorId: form.authorId || null,
       category: form.category.trim() || "Genel",
       tags: form.tags
         .split(",")
@@ -404,11 +413,34 @@ export function AdminBlogManager() {
                   <span className="text-xs font-bold uppercase tracking-widest text-clinical-muted">
                     Yazar
                   </span>
-                  <input
+                  <select
                     className={`${inputClass} mt-1`}
-                    value={form.author}
-                    onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
-                  />
+                    value={form.authorId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const author = authors.find((a) => a.id === id);
+                      setForm((f) => ({
+                        ...f,
+                        authorId: id,
+                        author: author?.fullName ?? f.author,
+                      }));
+                    }}
+                  >
+                    <option value="">Metin (manuel)</option>
+                    {authors.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.fullName}
+                      </option>
+                    ))}
+                  </select>
+                  {!form.authorId && (
+                    <input
+                      className={`${inputClass} mt-2`}
+                      value={form.author}
+                      onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
+                      placeholder="Yazar adı"
+                    />
+                  )}
                 </label>
               </div>
               <label className="block">

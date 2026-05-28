@@ -7,6 +7,7 @@ export async function getSupervisorAdminDetail(id: string): Promise<SupervisorAd
     where: { id },
     include: {
       slots: true,
+      services: true,
       user: { select: { email: true, emailVerified: true } },
       courses: {
         orderBy: { createdAt: "desc" },

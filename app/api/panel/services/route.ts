@@ -42,6 +42,7 @@ export const POST = withAuth(
       const price = parseOptionalNumber(body.price, 0);
       const duration = parseOptionalNumber(body.duration, 50);
       const active = body.active === false ? false : true;
+      const isGroupService = body.isGroupService === true;
 
       if (!name || !slug || !shortDescription || !description) {
         return NextResponse.json(
@@ -64,6 +65,7 @@ export const POST = withAuth(
           price,
           duration,
           active,
+          isGroupService,
         },
       });
       return NextResponse.json(serviceRowToApi(row), { status: 201 });

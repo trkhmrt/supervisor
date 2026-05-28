@@ -13,5 +13,6 @@ export function serviceRowToApi(row: PrismaService): Service {
     price: row.price,
     duration: row.duration,
     active: row.active,
+    isGroupService: row.isGroupService,
   };
 }

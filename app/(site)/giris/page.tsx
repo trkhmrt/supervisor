@@ -62,7 +62,7 @@ function LoginForm() {
   }
 
   return (
-    <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-20 pb-12">
+    <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-site-hero pb-12">
       <div className="container-wide flex justify-center">
         <div className="w-full max-w-5xl grid lg:grid-cols-2 bg-white rounded-premium shadow-2xl overflow-hidden border border-clinical-border">
           <div className="hidden lg:flex bg-navy-900 text-white p-16 flex-col justify-between relative overflow-hidden">

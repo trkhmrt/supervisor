@@ -16,7 +16,7 @@ export function HizmetlerPageClient({
 }) {
   return (
     <>
-      <section className="bg-navy-950 text-white pt-32 pb-20">
+      <section className="bg-navy-950 text-white pt-site-hero pb-20">
         <div className="container-wide">
           <Reveal>
             <span className="text-navy-400 font-bold uppercase tracking-widest text-xs mb-4 block">

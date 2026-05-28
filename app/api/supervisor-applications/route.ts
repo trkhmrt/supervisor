@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     const application = await createSupervisorApplication({
       fullName: typeof body.fullName === "string" ? body.fullName : "",
       email: typeof body.email === "string" ? body.email : "",
+      phone: typeof body.phone === "string" ? body.phone : "",
       message: typeof body.message === "string" ? body.message : undefined,
     });
     return NextResponse.json(application, { status: 201 });

@@ -12,7 +12,7 @@ export const GET = withAuth(
   async () => {
     try {
       const rows = await prisma.supervisor.findMany({
-        include: { slots: true, user: { select: { id: true, email: true } } },
+        include: { slots: true, services: true, user: { select: { id: true, email: true } } },
         orderBy: { fullName: "asc" },
       });
       return NextResponse.json(rows.map(supervisorRowToApi));

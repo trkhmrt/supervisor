@@ -7,6 +7,9 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --navy-900: #111111;
   --navy-950: #000000;
+  --phone-reminder-banner-h: 0px;
+  --site-header-h: 5.5rem;
+  --site-top-offset: calc(var(--phone-reminder-banner-h, 0px) + var(--site-header-h, 5.5rem));
 }
 
 html {
@@ -26,6 +29,10 @@ body {
   }
   .container-wide {
     @apply mx-auto w-full max-w-7xl container-px;
+  }
+
+  .pt-site-hero {
+    padding-top: var(--site-top-offset);
   }
 
   /* Premium Buttons */

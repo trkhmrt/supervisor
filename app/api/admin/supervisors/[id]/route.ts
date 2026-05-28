@@ -9,8 +9,23 @@ import { prismaUnavailableMessage } from "@/lib/db/prisma-route";
 import { getSupervisorAdminDetail } from "@/lib/db/supervisor-admin-detail";
 import { supervisorRowToApi } from "@/lib/db/supervisor-mapper";
 import { parseOptionalNumber, parseStringArray } from "@/lib/db/admin-parse";
+import {
+  normalizeApproaches,
+  normalizeExpertise,
+  normalizeLanguages,
+} from "@/lib/constants/supervisor-options";
 
 type Params = { params: Promise<{ id: string }> };
+
+function parseBoolean(v: unknown): boolean | undefined {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const t = v.trim().toLowerCase();
+    if (t === "true" || t === "1" || t === "yes") return true;
+    if (t === "false" || t === "0" || t === "no") return false;
+  }
+  return undefined;
+}
 
 export const GET = withAuth(
   async (_req, _auth, ctx: Params) => {
@@ -38,7 +53,10 @@ export async function PATCH(req: Request, { params }: Params) {
     if (typeof body.title === "string" && body.title.trim()) data.title = body.title.trim();
     if (typeof body.photo === "string" && body.photo.trim()) data.photo = body.photo.trim();
     if (typeof body.bio === "string") data.bio = body.bio.trim();
-    if (typeof body.license === "string" && body.license.trim()) data.license = body.license.trim();
+    if (typeof body.license === "string") {
+      const trimmed = body.license.trim();
+      data.license = trimmed.length ? trimmed : null;
+    }
     if (body.pricePerSession !== undefined) {
       data.pricePerSession = parseOptionalNumber(body.pricePerSession, 0);
     }
@@ -46,15 +64,18 @@ export async function PATCH(req: Request, { params }: Params) {
       data.currency = body.currency;
     }
     if (body.expertise !== undefined) {
-      const ex = parseStringArray(body.expertise);
-      if (ex.length) data.expertise = { set: ex };
+      data.expertise = { set: normalizeExpertise(parseStringArray(body.expertise)) };
     }
     if (body.languages !== undefined) {
-      const lang = parseStringArray(body.languages);
-      if (lang.length) data.languages = { set: lang };
+      const lang = normalizeLanguages(parseStringArray(body.languages));
+      data.languages = { set: lang.length ? lang : ["Türkçe"] };
     }
     if (body.approaches !== undefined) {
-      data.approaches = { set: parseStringArray(body.approaches) };
+      data.approaches = { set: normalizeApproaches(parseStringArray(body.approaches)) };
+    }
+    if (body.services !== undefined) {
+      const ids = parseStringArray(body.services);
+      data.services = { set: ids.map((id) => ({ id })) };
     }
     if (body.yearsExperience !== undefined) {
       data.yearsExperience = parseOptionalNumber(body.yearsExperience, 0);
@@ -63,11 +84,15 @@ export async function PATCH(req: Request, { params }: Params) {
     if (body.reviewCount !== undefined) {
       data.reviewCount = parseOptionalNumber(body.reviewCount, 0);
     }
+    if (body.sessionFeeOnRequest !== undefined) {
+      const v = parseBoolean(body.sessionFeeOnRequest);
+      if (typeof v === "boolean") data.sessionFeeOnRequest = v;
+    }
 
     const row = await prisma.supervisor.update({
       where: { id },
       data,
-      include: { slots: true },
+      include: { slots: true, services: true },
     });
     return NextResponse.json(supervisorRowToApi(row));
   } catch (e) {

@@ -53,7 +53,7 @@ export function Footer() {
               <FooterNavLink href="/supervizorler">Süpervizörler</FooterNavLink>
               <FooterNavLink href="/blog">Blog & Yayınlar</FooterNavLink>
               <FooterNavLink href="/iletisim">İletişim</FooterNavLink>
-              <FooterNavLink href="/admin">Yönetim Paneli</FooterNavLink>
+              <FooterNavLink href="/dashboard">Yönetim Paneli</FooterNavLink>
             </FooterNav>
 
             <FooterNav title="İletişim">

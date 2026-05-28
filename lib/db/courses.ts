@@ -147,6 +147,57 @@ export async function listPublicCoursesForSupervisor(supervisorId: string): Prom
   return rows.map((r) => courseRowToApi(r));
 }
 
+export async function listPublicCourses(): Promise<AdminCourse[]> {
+  const rows = await prisma.course.findMany({
+    where: { active: true },
+    orderBy: { createdAt: "desc" },
+    include: {
+      supervisor: { select: { fullName: true } },
+      _count: { select: { enrollments: true } },
+    },
+  });
+  return rows.map((r) => ({
+    ...courseRowToApi(r),
+    supervisorName: r.supervisor.fullName,
+  }));
+}
+
+export async function getPublicCourseBySlug(slug: string): Promise<AdminCourse | null> {
+  const row = await prisma.course.findFirst({
+    where: { slug, active: true },
+    include: {
+      supervisor: { select: { fullName: true } },
+      _count: { select: { enrollments: true } },
+    },
+  });
+  if (!row) return null;
+  return {
+    ...courseRowToApi(row),
+    supervisorName: row.supervisor.fullName,
+  };
+}
+
+export async function createCourseByAdmin(
+  supervisorId: string,
+  input: CreateCourseInput
+): Promise<Course> {
+  return createCourseForSupervisor(supervisorId, input);
+}
+
+export async function updateCourseByAdmin(
+  courseId: string,
+  data: Partial<CreateCourseInput> & { active?: boolean; acceptsApplications?: boolean }
+): Promise<Course | null> {
+  const existing = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!existing) return null;
+  return updateCourseForSupervisor(existing.supervisorId, courseId, data);
+}
+
+export async function deleteCourseByAdmin(courseId: string): Promise<boolean> {
+  const result = await prisma.course.deleteMany({ where: { id: courseId } });
+  return result.count > 0;
+}
+
 export type CreateCourseInput = {
   title: string;
   slug?: string;

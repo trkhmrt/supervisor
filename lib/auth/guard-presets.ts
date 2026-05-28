@@ -71,10 +71,21 @@ export const GUARD = {
     messages: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
     newsletter: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
   },
+  settings: {
+    read: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
+    update: { roles: "admin", scopes: SCOPES.SETTINGS_UPDATE } satisfies GuardOptions,
+  },
+  ads: {
+    list: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
+    write: { roles: "admin", scopes: SCOPES.SETTINGS_UPDATE } satisfies GuardOptions,
+  },
   admins: {
     list: { roles: "admin", scopes: SCOPES.ADMINS_LIST, adminPanelOnly: true } satisfies GuardOptions,
     create: { roles: "admin", scopes: SCOPES.ADMINS_CREATE, adminPanelOnly: true } satisfies GuardOptions,
     update: { roles: "admin", scopes: SCOPES.ADMINS_UPDATE, adminPanelOnly: true } satisfies GuardOptions,
     delete: { roles: "admin", scopes: SCOPES.ADMINS_DELETE, adminPanelOnly: true } satisfies GuardOptions,
+  },
+  profile: {
+    update: { roles: ["user", "supervisor", "admin"], lightAuth: true } satisfies GuardOptions,
   },
 } as const;

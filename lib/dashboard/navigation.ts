@@ -14,6 +14,10 @@ export type DashboardNavId =
   | "availability"
   | "enrollments"
   | "blog"
+  | "ads"
+  | "site-content"
+  | "messages"
+  | "members"
   | "admins"
   | "profile";
 
@@ -46,7 +50,7 @@ export const DASHBOARD_NAV_USER: DashboardNavItem[] = [
 export const DASHBOARD_NAV_SUPERVISOR: DashboardNavItem[] = [
   { id: "overview", href: DASHBOARD_BASE, label: "Genel Bakış", exact: true },
   { id: "appointments", href: `${DASHBOARD_BASE}/randevular`, label: "Randevularım" },
-  { id: "courses", href: `${DASHBOARD_BASE}/kurslar`, label: "Kurslarım" },
+  { id: "courses", href: `${DASHBOARD_BASE}/kurslar`, label: "Kurs Başvuruları" },
   { id: "availability", href: `${DASHBOARD_BASE}/takvim`, label: "Takvim" },
   { id: "profile", href: `${DASHBOARD_BASE}/profil`, label: "Profil" },
 ];
@@ -61,9 +65,33 @@ export const DASHBOARD_NAV_ADMIN: DashboardNavItem[] = [
     scope: SCOPES.SUPERVISORS_LIST,
   },
   {
+    id: "services",
+    href: `${DASHBOARD_BASE}/hizmetler`,
+    label: "Hizmetler",
+    scope: SCOPES.SERVICES_LIST,
+  },
+  {
+    id: "appointments",
+    href: `${DASHBOARD_BASE}/randevular`,
+    label: "Randevular",
+    scope: SCOPES.APPOINTMENTS_LIST,
+  },
+  {
+    id: "ads",
+    href: `${DASHBOARD_BASE}/reklamlar`,
+    label: "Reklamlar",
+    scope: SCOPES.SETTINGS_UPDATE,
+  },
+  {
+    id: "site-content",
+    href: `${DASHBOARD_BASE}/site-icerik`,
+    label: "Site İçerik",
+    scope: SCOPES.SETTINGS_UPDATE,
+  },
+  {
     id: "courses",
     href: `${DASHBOARD_BASE}/kurslar`,
-    label: "Kurslar",
+    label: "Eğitimler",
     scope: SCOPES.SUPERVISORS_LIST,
   },
   {
@@ -73,8 +101,20 @@ export const DASHBOARD_NAV_ADMIN: DashboardNavItem[] = [
     scope: SCOPES.SETTINGS_UPDATE,
   },
   {
+    id: "messages",
+    href: `${DASHBOARD_BASE}/mesajlar`,
+    label: "Mesajlar",
+    scope: SCOPES.SETTINGS_READ,
+  },
+  {
+    id: "members",
+    href: `${DASHBOARD_BASE}/uyeler`,
+    label: "Üyeler",
+    scope: SCOPES.USERS_LIST,
+  },
+  {
     id: "admins",
-    href: `${DASHBOARD_BASE}/kullanicilar`,
+    href: `${DASHBOARD_BASE}/alt-adminler`,
     label: "Alt Adminler",
     scope: SCOPES.ADMINS_LIST,
   },

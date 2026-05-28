@@ -7,8 +7,17 @@ import { usePanelAppointments } from "@/hooks/usePanelAppointments";
 import type { Appointment, Service } from "@/lib/types";
 import { formatPrice, formatDate, serviceLabelById } from "@/lib/utils";
 import { useRemoteServices } from "@/hooks/useRemoteServices";
+import { AdminAppointmentsPage } from "./AdminAppointmentsPage";
 
 export default function PanelAppointmentsPage() {
+  const user = useSessionUser()!;
+  if (user.role === "admin") {
+    return <AdminAppointmentsPage />;
+  }
+  return <PanelAppointmentsView />;
+}
+
+function PanelAppointmentsView() {
   const user = useSessionUser()!;
   const { data: servicesForLabels } = useRemoteServices();
   const { appointments, loading, loadingMore, hasMore, error, loadMore, cancelAppointment } =

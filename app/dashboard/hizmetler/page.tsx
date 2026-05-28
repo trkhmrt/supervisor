@@ -36,6 +36,7 @@ export default function PanelServicesPage() {
     features: "50 dakikalık online seans\nVaka odaklı çalışma",
     icon: "user",
     duration: "50",
+    isGroupService: false,
   });
 
   const reload = useCallback(async () => {
@@ -60,6 +61,19 @@ export default function PanelServicesPage() {
     }
     reload();
   }, [reload, router, user]);
+
+  const toggleGroupService = async (s: Service) => {
+    try {
+      const r = await panelFetch(user, `/api/panel/services/${s.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isGroupService: !s.isGroupService }),
+      });
+      if (!r.ok) throw new Error(await panelErrorMessage(r, "Güncellenemedi"));
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Güncellenemedi");
+    }
+  };
 
   const toggleActive = async (s: Service) => {
     try {
@@ -108,6 +122,7 @@ export default function PanelServicesPage() {
           price: 0,
           duration: Number(form.duration) || 50,
           active: true,
+          isGroupService: form.isGroupService,
         }),
       });
       if (!r.ok) throw new Error(await panelErrorMessage(r, "Kayıt başarısız"));
@@ -119,6 +134,7 @@ export default function PanelServicesPage() {
         features: "50 dakikalık online seans\nVaka odaklı çalışma",
         icon: "user",
         duration: "50",
+        isGroupService: false,
       });
       setShowForm(false);
       await reload();
@@ -218,6 +234,20 @@ export default function PanelServicesPage() {
               onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
               className="rounded-premium border border-clinical-border px-3 py-2 text-sm"
             />
+            <label className="md:col-span-2 flex items-center gap-3 rounded-premium border border-clinical-border px-4 py-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.isGroupService}
+                onChange={(e) => setForm((f) => ({ ...f, isGroupService: e.target.checked }))}
+                className="h-4 w-4"
+              />
+              <span>
+                <span className="font-semibold text-navy-900">Grup hizmeti</span>
+                <span className="block text-xs text-clinical-muted mt-0.5">
+                  Süpervizörler bu hizmet için grup/kohort tanımlayabilir; danışanlar gruba başvurur.
+                </span>
+              </span>
+            </label>
             <div className="md:col-span-2 flex gap-2">
               <button type="submit" disabled={saving} className="btn-navy py-2 px-6 text-xs">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Veritabanına Kaydet"}
@@ -238,6 +268,15 @@ export default function PanelServicesPage() {
                 <ServiceIcon icon={s.icon} className="h-6 w-6" />
               </div>
               <div className="flex items-center gap-2">
+                <span
+                  className={`rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
+                    s.isGroupService
+                      ? "border-violet-100 bg-violet-50 text-violet-700"
+                      : "border-clinical-border bg-clinical-light text-clinical-muted"
+                  }`}
+                >
+                  {s.isGroupService ? "Grup" : "Bireysel"}
+                </span>
                 <span
                   className={`rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
                     s.active
@@ -269,13 +308,22 @@ export default function PanelServicesPage() {
                 {s.duration} dk
               </span>
               {canUpdate && (
-                <button
-                  type="button"
-                  onClick={() => toggleActive(s)}
-                  className="btn-outline-navy py-2 px-4 text-[10px] font-bold uppercase tracking-widest"
-                >
-                  {s.active ? "Pasif Yap" : "Aktif Et"}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleGroupService(s)}
+                    className="btn-outline-navy py-2 px-4 text-[10px] font-bold uppercase tracking-widest"
+                  >
+                    {s.isGroupService ? "Bireysel Yap" : "Grup Yap"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleActive(s)}
+                    className="btn-outline-navy py-2 px-4 text-[10px] font-bold uppercase tracking-widest"
+                  >
+                    {s.active ? "Pasif Yap" : "Aktif Et"}
+                  </button>
+                </div>
               )}
             </div>
           </div>

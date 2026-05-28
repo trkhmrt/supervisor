@@ -7,19 +7,43 @@ import { AdminTabBar } from "@/components/admin/AdminTabBar";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { SupervisorApplicationsCard } from "@/components/admin/SupervisorApplicationsCard";
 import { formatDate } from "@/lib/utils";
-import type { Supervisor, SupervisorApplication, SupervisorInvite } from "@/lib/types";
+import {
+  EXPERTISE_AREAS,
+  LANGUAGES,
+  THERAPY_APPROACHES,
+} from "@/lib/constants/supervisor-options";
+import type { Service, Supervisor, SupervisorApplication, SupervisorInvite } from "@/lib/types";
 
 type TabId = "supervisors" | "applications" | "invites";
 
-const emptyForm = {
+type FormState = {
+  fullName: string;
+  title: string;
+  photo: string;
+  bio: string;
+  pricePerSession: string;
+  sessionFeeOnRequest: boolean;
+  yearsExperience: string;
+  expertise: string[];
+  approaches: string[];
+  languages: string[];
+  services: string[];
+  accountEmail: string;
+  accountPassword: string;
+};
+
+const emptyForm: FormState = {
   fullName: "",
   title: "",
   photo: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400",
   bio: "",
-  license: "",
   pricePerSession: "1500",
-  expertise: "Bireysel Terapi",
-  languages: "Türkçe",
+  sessionFeeOnRequest: false,
+  yearsExperience: "0",
+  expertise: [],
+  approaches: [],
+  languages: ["Türkçe"],
+  services: [],
   accountEmail: "",
   accountPassword: "",
 };
@@ -29,10 +53,11 @@ export function AdminSupervisorsPage() {
   const [list, setList] = useState<Supervisor[]>([]);
   const [applications, setApplications] = useState<SupervisorApplication[]>([]);
   const [invites, setInvites] = useState<SupervisorInvite[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [invitingId, setInvitingId] = useState<string | null>(null);
 
@@ -45,10 +70,11 @@ export function AdminSupervisorsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [supRes, appRes, invRes] = await Promise.all([
+      const [supRes, appRes, invRes, svcRes] = await Promise.all([
         fetch("/api/adminpanel/supervisors", { credentials: "include" }),
         fetch("/api/admin/supervisor-applications", { credentials: "include" }),
         fetch("/api/admin/invites", { credentials: "include" }),
+        fetch("/api/services", { credentials: "include" }),
       ]);
       const data = await supRes.json();
       if (!supRes.ok) throw new Error(data.error ?? "Liste alınamadı.");
@@ -57,6 +83,8 @@ export function AdminSupervisorsPage() {
       else setApplications([]);
       if (invRes.ok) setInvites(await invRes.json());
       else setInvites([]);
+      if (svcRes.ok) setServices(await svcRes.json());
+      else setServices([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Hata");
     } finally {
@@ -116,10 +144,13 @@ export function AdminSupervisorsPage() {
           title: form.title,
           photo: form.photo,
           bio: form.bio,
-          license: form.license,
           pricePerSession: Number(form.pricePerSession),
-          expertise: form.expertise.split(",").map((s) => s.trim()).filter(Boolean),
-          languages: form.languages.split(",").map((s) => s.trim()).filter(Boolean),
+          sessionFeeOnRequest: form.sessionFeeOnRequest,
+          yearsExperience: Number(form.yearsExperience),
+          expertise: form.expertise,
+          approaches: form.approaches,
+          languages: form.languages,
+          services: form.services,
           accountEmail: form.accountEmail,
           accountPassword: form.accountPassword,
         }),
@@ -135,6 +166,15 @@ export function AdminSupervisorsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function toggle(field: "expertise" | "approaches" | "languages" | "services", value: string) {
+    setForm((f) => ({
+      ...f,
+      [field]: f[field].includes(value)
+        ? f[field].filter((x) => x !== value)
+        : [...f[field], value],
+    }));
   }
 
   async function sendInvite(id: string) {
@@ -229,7 +269,9 @@ export function AdminSupervisorsPage() {
                         </td>
                         <td className="py-4 pr-4 text-clinical-muted">{s.title}</td>
                         <td className="py-4 pr-4">
-                          {s.pricePerSession} {s.currency}
+                          {s.sessionFeeOnRequest
+                            ? "Görüşmede belirtilecek"
+                            : `${s.pricePerSession} ${s.currency}`}
                         </td>
                         <td className="py-4 text-xs text-clinical-muted font-mono">{s.id}</td>
                         <td className="py-4">
@@ -342,7 +384,7 @@ export function AdminSupervisorsPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-premium border border-clinical-border shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8">
+          <div className="bg-white rounded-premium border border-clinical-border shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-bold text-lg text-navy-900">Süpervizör + Hesap</h2>
               <button type="button" onClick={() => setShowForm(false)} aria-label="Kapat">
@@ -350,8 +392,10 @@ export function AdminSupervisorsPage() {
               </button>
             </div>
             <form onSubmit={(e) => void handleCreate(e)} className="space-y-4">
-              <Field label="Ad Soyad" value={form.fullName} onChange={(v) => setForm((f) => ({ ...f, fullName: v }))} />
-              <Field label="Unvan" value={form.title} onChange={(v) => setForm((f) => ({ ...f, title: v }))} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Ad Soyad" value={form.fullName} onChange={(v) => setForm((f) => ({ ...f, fullName: v }))} />
+                <Field label="Unvan" value={form.title} onChange={(v) => setForm((f) => ({ ...f, title: v }))} />
+              </div>
               <Field label="Foto URL" value={form.photo} onChange={(v) => setForm((f) => ({ ...f, photo: v }))} />
               <label className="block text-xs font-bold uppercase text-navy-900">
                 Biyografi
@@ -363,14 +407,51 @@ export function AdminSupervisorsPage() {
                   className="mt-1 w-full rounded-premium border border-clinical-border p-3 text-sm"
                 />
               </label>
-              <Field label="Lisans" value={form.license} onChange={(v) => setForm((f) => ({ ...f, license: v }))} />
-              <Field label="Seans ücreti" value={form.pricePerSession} onChange={(v) => setForm((f) => ({ ...f, pricePerSession: v }))} type="number" />
-              <Field label="Uzmanlık (virgülle)" value={form.expertise} onChange={(v) => setForm((f) => ({ ...f, expertise: v }))} />
-              <Field label="Diller (virgülle)" value={form.languages} onChange={(v) => setForm((f) => ({ ...f, languages: v }))} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Seans ücreti" value={form.pricePerSession} onChange={(v) => setForm((f) => ({ ...f, pricePerSession: v }))} type="number" disabled={form.sessionFeeOnRequest} />
+                <Field label="Tecrübe (yıl)" value={form.yearsExperience} onChange={(v) => setForm((f) => ({ ...f, yearsExperience: v }))} type="number" />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-navy-900">
+                <input
+                  type="checkbox"
+                  checked={form.sessionFeeOnRequest}
+                  onChange={(e) => setForm((f) => ({ ...f, sessionFeeOnRequest: e.target.checked }))}
+                />
+                Seans ücreti belirtmek istemiyor
+              </label>
+
+              <MultiSelect
+                label="Uzmanlık Alanları"
+                options={[...EXPERTISE_AREAS]}
+                values={form.expertise}
+                onToggle={(v) => toggle("expertise", v)}
+              />
+              <MultiSelect
+                label="Terapi Yaklaşımları"
+                options={[...THERAPY_APPROACHES]}
+                values={form.approaches}
+                onToggle={(v) => toggle("approaches", v)}
+              />
+              <MultiSelect
+                label="Sağladığı Hizmetler"
+                options={services.map((s) => ({ value: s.id, label: s.name }))}
+                values={form.services}
+                onToggle={(v) => toggle("services", v)}
+                emptyMessage="Sistemde aktif hizmet bulunmuyor."
+              />
+              <MultiSelect
+                label="Diller"
+                options={[...LANGUAGES]}
+                values={form.languages}
+                onToggle={(v) => toggle("languages", v)}
+              />
+
               <hr className="border-clinical-border" />
               <p className="text-xs text-clinical-muted">Giriş hesabı (supervisor rolü)</p>
-              <Field label="Hesap e-posta" value={form.accountEmail} onChange={(v) => setForm((f) => ({ ...f, accountEmail: v }))} type="email" />
-              <Field label="Hesap şifre" value={form.accountPassword} onChange={(v) => setForm((f) => ({ ...f, accountPassword: v }))} type="password" />
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Hesap e-posta" value={form.accountEmail} onChange={(v) => setForm((f) => ({ ...f, accountEmail: v }))} type="email" />
+                <Field label="Hesap şifre" value={form.accountPassword} onChange={(v) => setForm((f) => ({ ...f, accountPassword: v }))} type="password" />
+              </div>
               <button
                 type="submit"
                 disabled={saving}
@@ -386,16 +467,61 @@ export function AdminSupervisorsPage() {
   );
 }
 
+type MultiSelectOption = string | { value: string; label: string };
+
+function MultiSelect({
+  label,
+  options,
+  values,
+  onToggle,
+  emptyMessage,
+}: {
+  label: string;
+  options: MultiSelectOption[];
+  values: string[];
+  onToggle: (v: string) => void;
+  emptyMessage?: string;
+}) {
+  const items = options.map((o) =>
+    typeof o === "string" ? { value: o, label: o } : o
+  );
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase text-navy-900 mb-2">{label}</p>
+      {items.length === 0 ? (
+        <p className="rounded-premium border border-clinical-border bg-clinical-light/40 px-3 py-2 text-xs text-clinical-muted">
+          {emptyMessage ?? "Seçenek yok."}
+        </p>
+      ) : (
+        <div className="max-h-44 overflow-y-auto rounded-premium border border-clinical-border p-3 grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-3">
+          {items.map((opt) => (
+            <label key={opt.value} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.includes(opt.value)}
+                onChange={() => onToggle(opt.value)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Field({
   label,
   value,
   onChange,
   type = "text",
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="block text-xs font-bold uppercase text-navy-900">
@@ -404,8 +530,9 @@ function Field({
         required={type !== "number"}
         type={type}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
+        className="mt-1 w-full rounded-premium border border-clinical-border px-3 py-2 text-sm disabled:bg-clinical-light disabled:text-clinical-muted"
       />
     </label>
   );

@@ -8,11 +8,8 @@ import {
   MapPin,
   Award,
   Globe,
-  BookOpen,
-  Quote,
   CheckCircle2,
   Calendar,
-  ShieldCheck,
   Video,
 } from "lucide-react";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
@@ -33,7 +30,7 @@ export function SupervisorProfileClient({
 
   return (
     <>
-      <section className="bg-navy-950 text-white pt-32 pb-20 relative overflow-hidden">
+      <section className="bg-navy-950 text-white pt-site-hero pb-20 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-white/5 -z-0 skew-x-12 translate-x-1/2" />
         <div className="container-wide relative z-10">
           <div className="grid lg:grid-cols-12 gap-16 items-center">
@@ -74,8 +71,7 @@ export function SupervisorProfileClient({
               </Reveal>
               
               <Reveal delay={0.4}>
-                <div className="grid sm:grid-cols-3 gap-4">
-                   <DetailBox icon={BookOpen} label="Lisans" value={supervisor.license} />
+                <div className="grid sm:grid-cols-2 gap-4">
                    <DetailBox icon={Globe} label="Diller" value={supervisor.languages.join(", ")} />
                    <DetailBox icon={MapPin} label="Konum" value="Online / Global" />
                 </div>
@@ -120,6 +116,24 @@ export function SupervisorProfileClient({
                     </div>
                   </div>
                </div>
+
+               {supervisor.services && supervisor.services.length > 0 && (
+                 <div className="mt-12">
+                   <h4 className="text-xs font-bold uppercase tracking-widest text-navy-500 mb-6">Sağladığı Hizmetler</h4>
+                   <div className="flex flex-wrap gap-2">
+                     {supervisor.services.map((s) => (
+                       <Link
+                         key={s.id}
+                         href={`/supervizorler/${supervisor.id}/randevu?service=${s.slug}`}
+                         className="bg-[#d1f90b]/30 text-navy-900 px-3 py-1.5 rounded-premium text-sm font-medium border border-[#d1f90b]/60 hover:bg-[#d1f90b]/50 transition"
+                       >
+                         {s.name}
+                         {s.isGroupService ? " · Grup" : ""}
+                       </Link>
+                     ))}
+                   </div>
+                 </div>
+               )}
             </div>
 
             <div className="lg:col-span-5">
@@ -128,7 +142,15 @@ export function SupervisorProfileClient({
                   <div className="space-y-4 mb-8">
                      <div className="flex justify-between items-center py-4 border-b border-clinical-border">
                         <span className="text-clinical-muted text-sm">Bireysel Seans Ücreti</span>
-                        <span className="text-2xl font-bold text-navy-900">{formatPrice(supervisor.pricePerSession)}</span>
+                        {supervisor.sessionFeeOnRequest ? (
+                          <span className="text-sm font-semibold text-navy-900">
+                            Seans ücreti görüşme esnasında belirtilecektir.
+                          </span>
+                        ) : (
+                          <span className="text-2xl font-bold text-navy-900">
+                            {formatPrice(supervisor.pricePerSession)}
+                          </span>
+                        )}
                      </div>
                      <div className="flex justify-between items-center py-4 border-b border-clinical-border">
                         <span className="text-clinical-muted text-sm">Seans Süresi</span>
@@ -142,10 +164,25 @@ export function SupervisorProfileClient({
                         </span>
                      </div>
                   </div>
-                  <Link href={`/supervizorler/${supervisor.id}/randevu`} className="btn-navy w-full">
-                     Hemen Randevu Al
-                     <Calendar className="h-4 w-4" />
-                  </Link>
+                  {bookingService?.isGroupService ? (
+                    <Link
+                      href={`/supervizorler/${supervisor.id}/randevu?service=${bookingService.slug}`}
+                      className="btn-navy w-full"
+                    >
+                      Gruba Başvur
+                      <Calendar className="h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/supervizorler/${supervisor.id}/randevu${
+                        bookingService ? `?service=${bookingService.slug}` : ""
+                      }`}
+                      className="btn-navy w-full"
+                    >
+                      Hemen Randevu Al
+                      <Calendar className="h-4 w-4" />
+                    </Link>
+                  )}
                   <p className="text-[10px] text-center text-clinical-muted mt-4 uppercase tracking-widest">
                      256-bit SSL Güvenli Ödeme Altyapısı
                   </p>

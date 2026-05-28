@@ -13,6 +13,7 @@ export function AddSupervisorCard({ user }: { user: User }) {
     bio: "",
     license: "",
     pricePerSession: "1500",
+    sessionFeeOnRequest: false,
     yearsExperience: "10",
     expertise: "Klinik Psikoloji, Travma",
   });
@@ -42,6 +43,7 @@ export function AddSupervisorCard({ user }: { user: User }) {
           bio: form.bio.trim(),
           license: form.license.trim(),
           pricePerSession: Number(form.pricePerSession) || 0,
+          sessionFeeOnRequest: form.sessionFeeOnRequest,
           yearsExperience: Number(form.yearsExperience) || 0,
           expertise,
         }),
@@ -58,6 +60,7 @@ export function AddSupervisorCard({ user }: { user: User }) {
         bio: "",
         license: "",
         pricePerSession: "1500",
+        sessionFeeOnRequest: false,
         yearsExperience: "10",
         expertise: "Klinik Psikoloji, Travma",
       });
@@ -144,8 +147,9 @@ export function AddSupervisorCard({ user }: { user: User }) {
           min={0}
           placeholder="Seans ücreti (TRY)"
           value={form.pricePerSession}
+          disabled={form.sessionFeeOnRequest}
           onChange={(e) => setForm((f) => ({ ...f, pricePerSession: e.target.value }))}
-          className="rounded-premium border border-clinical-border bg-white px-3 py-2 text-sm"
+          className="rounded-premium border border-clinical-border bg-white px-3 py-2 text-sm disabled:bg-clinical-light"
         />
         <input
           type="number"
@@ -155,6 +159,14 @@ export function AddSupervisorCard({ user }: { user: User }) {
           onChange={(e) => setForm((f) => ({ ...f, yearsExperience: e.target.value }))}
           className="rounded-premium border border-clinical-border bg-white px-3 py-2 text-sm"
         />
+        <label className="sm:col-span-2 flex items-center gap-2 text-sm text-navy-900">
+          <input
+            type="checkbox"
+            checked={form.sessionFeeOnRequest}
+            onChange={(e) => setForm((f) => ({ ...f, sessionFeeOnRequest: e.target.checked }))}
+          />
+          Seans ücreti belirtmek istemiyor
+        </label>
         <div className="sm:col-span-2">
           <button type="submit" disabled={saving} className="btn-navy w-full py-3 text-xs sm:w-auto sm:px-8">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kaydet"}

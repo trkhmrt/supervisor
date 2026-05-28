@@ -38,6 +38,7 @@ export const PATCH = withAuth(
       if (body.price !== undefined) data.price = parseOptionalNumber(body.price, 0);
       if (body.duration !== undefined) data.duration = parseOptionalNumber(body.duration, 50);
       if (typeof body.active === "boolean") data.active = body.active;
+      if (typeof body.isGroupService === "boolean") data.isGroupService = body.isGroupService;
 
       const row = await prisma.service.update({ where: { id }, data });
       return NextResponse.json(serviceRowToApi(row));

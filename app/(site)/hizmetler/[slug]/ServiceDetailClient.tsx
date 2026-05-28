@@ -32,7 +32,7 @@ export function ServiceDetailClient({
   return (
     <>
       {/* HEADER SECTION */}
-      <section className="bg-navy-950 text-white pt-32 pb-20 relative overflow-hidden">
+      <section className="bg-navy-950 text-white pt-site-hero pb-20 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-white/5 -z-0 skew-x-12 translate-x-1/4" />
         <div className="container-wide relative z-10">
           <Reveal>

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, Loader2, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import type { SupervisorAdminDetail } from "@/lib/types";
+import type { Service, SupervisorAdminDetail } from "@/lib/types";
+import { ServiceGroupsAdminSection } from "@/components/admin/ServiceGroupsAdminSection";
 
 type Props = {
   id: string;
@@ -133,7 +134,9 @@ export function SupervisorAdminDetailView({ id, listHref, coursesHref }: Props) 
           <h1 className="text-xl font-bold text-navy-900">{data.fullName}</h1>
           <p className="text-sm text-clinical-muted">{data.title}</p>
           <p className="mt-3 font-bold text-navy-900">
-            {data.pricePerSession} {data.currency} / seans
+            {data.sessionFeeOnRequest
+              ? "Seans ücreti görüşme esnasında belirtilecektir."
+              : `${data.pricePerSession} ${data.currency} / seans`}
           </p>
           <p className="mt-2 text-xs text-clinical-muted">
             {data.rating.toFixed(1)} puan · {data.reviewCount} yorum
@@ -146,20 +149,26 @@ export function SupervisorAdminDetailView({ id, listHref, coursesHref }: Props) 
             <p className="text-sm text-clinical-muted leading-relaxed whitespace-pre-wrap">{data.bio}</p>
             <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
               <div>
-                <dt className="text-[10px] font-bold uppercase text-clinical-muted">Lisans</dt>
-                <dd className="mt-0.5">{data.license}</dd>
-              </div>
-              <div>
                 <dt className="text-[10px] font-bold uppercase text-clinical-muted">Tecrübe</dt>
                 <dd className="mt-0.5">{data.yearsExperience} yıl</dd>
               </div>
               <div>
                 <dt className="text-[10px] font-bold uppercase text-clinical-muted">Uzmanlık</dt>
-                <dd className="mt-0.5">{data.expertise.join(", ")}</dd>
+                <dd className="mt-0.5">{data.expertise.join(", ") || "—"}</dd>
               </div>
               <div>
                 <dt className="text-[10px] font-bold uppercase text-clinical-muted">Diller</dt>
                 <dd className="mt-0.5">{data.languages.join(", ") || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-bold uppercase text-clinical-muted">Yaklaşımlar</dt>
+                <dd className="mt-0.5">{data.approaches.join(", ") || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-bold uppercase text-clinical-muted">Hizmetler</dt>
+                <dd className="mt-0.5">
+                  {(data.services?.map((s) => s.name).join(", ")) || "—"}
+                </dd>
               </div>
               <div>
                 <dt className="text-[10px] font-bold uppercase text-clinical-muted">E-posta</dt>
@@ -191,6 +200,11 @@ export function SupervisorAdminDetailView({ id, listHref, coursesHref }: Props) 
               </ul>
             )}
           </div>
+
+          <ServiceGroupsAdminSection
+            supervisorId={data.id}
+            services={(data.services ?? []) as Service[]}
+          />
         </div>
       </div>
     </div>

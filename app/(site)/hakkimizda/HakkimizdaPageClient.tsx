@@ -9,7 +9,7 @@ import type { Supervisor } from "@/lib/types";
 export function HakkimizdaPageClient({ supervisors }: { supervisors: Supervisor[] }) {
   return (
     <>
-      <section className="bg-navy-950 text-white pt-32 pb-24 relative overflow-hidden">
+      <section className="bg-navy-950 text-white pt-site-hero pb-24 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-white/5 -z-0 skew-x-12 translate-x-1/4" />
         <div className="container-wide relative z-10">
           <div className="grid lg:grid-cols-2 gap-20 items-center">

@@ -14,33 +14,111 @@ import {
   Quote,
   HeartPulse,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 import { formatDate } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import type { BlogPost, Service, Supervisor } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import type { BlogPost, HeroContent, HomeContent, Service, Supervisor } from "@/lib/types";
+
+const HOMEPAGE_TESTIMONIALS = [
+  {
+    quote:
+      "Süpervizyon sürecim hayatımda en çok dönüştürücü etkisi olan deneyimlerden biri. Tek bir platformda her şeyin olması işimi de çok kolaylaştırdı.",
+    author: "Zeynep Akın",
+    role: "Klinik Psikolog",
+  },
+  {
+    quote:
+      "Eğitimli simülasyon danışanlarıyla yaptığım pratikler kendime güvenimi tamamen değiştirdi. Beceri kazanmak için en güzel format.",
+    author: "Mert Doğan",
+    role: "PDR Uzmanı",
+  },
+  {
+    quote:
+      "Süpervizör eşleşmesinden randevuya kadar süreç çok düzenli. Meslektaşlarımla paylaşım imkânı da motivasyonumu artırıyor.",
+    author: "Elif Yılmaz",
+    role: "Psikiyatrist",
+  },
+  {
+    quote:
+      "Klinik vakaları güvenli biçimde tartışmak ve geri bildirim almak için ihtiyaç duyduğum her şey tek yerde toplanmış.",
+    author: "Can Öztürk",
+    role: "Klinik Psikolog",
+  },
+];
 
 export function HomePageClient({
   services,
   supervisors,
+  hero,
+  home,
 }: {
   services: Service[];
   supervisors: Supervisor[];
+  hero: HeroContent;
+  home: HomeContent;
 }) {
   const featuredSupervisors = supervisors.slice(0, 3);
+  const prefersReducedMotion = useReducedMotion() === true;
+  const testimonialMarqueeItems = useMemo(
+    () =>
+      prefersReducedMotion
+        ? HOMEPAGE_TESTIMONIALS
+        : [...HOMEPAGE_TESTIMONIALS, ...HOMEPAGE_TESTIMONIALS],
+    [prefersReducedMotion]
+  );
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const heroWords = ["Güvenle", "Derinlikle", "Etikle"];
-  const floatingKeywords = ["Vaka Analizi", "Etik Çerçeve", "Canlı Geri Bildirim", "Sürekli Gelişim"];
+  const heroWords = useMemo(
+    () => (hero.headlineWords.length > 0 ? hero.headlineWords : ["Güvenle"]),
+    [hero.headlineWords]
+  );
+  const floatingKeywords = hero.floatingKeywords;
+  const heroImageSrc = hero.imageUrl || supervisors[0]?.photo || "/images/abdullatif.png";
+  const heroImageAlt = hero.imageAlt || supervisors[0]?.fullName || "Süpervizör";
   const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const trustFallback = [
+    "Etik Onayli",
+    "Tedavi Odakli Surec",
+    "Klinik Yetkin Uzmanlar",
+    "Süpervizyon Dayanismasi",
+  ];
+  const trustLabels = trustFallback.map((fallback, index) => home.trustLabels[index] ?? fallback);
+  const whyFeatureTitles = [
+    home.whyFeatureTitles[0] ?? "Doğrulanmış Uzman Kadrosu",
+    home.whyFeatureTitles[1] ?? "Kolay Randevu Akisi",
+    home.whyFeatureTitles[2] ?? "Sürdürülebilir Klinik Takip",
+  ];
+  const whyFeatureDescs = [
+    home.whyFeatureDescs[0] ??
+      "Tum supervizorlerimiz aktif klinik vakalarla calisan, en az 10 yil tecrubeli uzmanlardan secilir.",
+    home.whyFeatureDescs[1] ??
+      "Takvim secimi, saat secimi ve onay tek panelde. Hatirlaticilar otomatik olarak olusturulur.",
+    home.whyFeatureDescs[2] ??
+      "Seans sonu geri bildirimleriniz kaybolmaz; bir sonraki surece dogrudan aktarilir.",
+  ];
+  const whyStepTitles = [
+    home.whyStepTitles[0] ?? "Hızlı Rezervasyon",
+    home.whyStepTitles[1] ?? "Tedavi Odağına Uygun Eşleşme",
+    home.whyStepTitles[2] ?? "Takipli Seans Deneyimi",
+  ];
+  const whyStepDescs = [
+    home.whyStepDescs[0] ?? "Saniyeler icinde takvimi goruntuleyin ve randevunuzu kesinlestirin.",
+    home.whyStepDescs[1] ??
+      "Vaka tipinize uygun uzmanlik alanlarini one cikarir ve secimi hizlandirir.",
+    home.whyStepDescs[2] ??
+      "Onaylanan randevularinizin tum detaylari panelinizde anlik gorunur.",
+  ];
 
   useEffect(() => {
+    setActiveWordIndex(0);
+    if (heroWords.length <= 1) return;
     const timer = window.setInterval(() => {
       setActiveWordIndex((prev) => (prev + 1) % heroWords.length);
     }, 2400);
 
     return () => window.clearInterval(timer);
-  }, [heroWords.length]);
+  }, [heroWords]);
 
   useEffect(() => {
     void fetch("/api/blog")
@@ -52,7 +130,7 @@ export function HomePageClient({
   return (
     <>
       {/* HERO SECTION */}
-      <section className="hero-gradient-bg relative flex min-h-[90vh] items-center overflow-hidden pt-24">
+      <section className="hero-gradient-bg relative flex min-h-[90vh] items-center overflow-hidden pt-site-hero">
         <div className="pointer-events-none absolute inset-0 -z-10 animated-grid-bg opacity-40" />
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <motion.div
@@ -75,11 +153,11 @@ export function HomePageClient({
           <div className="grid items-center gap-14 lg:grid-cols-[1.08fr_0.92fr]">
             <div className="text-center lg:text-left">
               <Reveal>
-                <span className="info-highlight">Klinik Odakli Supervizyon</span>
+                <span className="info-highlight">{hero.eyebrow}</span>
               </Reveal>
               <Reveal delay={0.1}>
                 <h1 className="h1-premium text-balance mx-auto mt-6 max-w-4xl lg:mx-0">
-                  Tedavi Yetkinliginizi
+                  {hero.headlinePrefix}
                   <span className="mx-2 inline-flex min-h-[1.3em] items-center text-black">
                     <AnimatePresence mode="wait">
                       <motion.span
@@ -93,43 +171,41 @@ export function HomePageClient({
                         {heroWords[activeWordIndex]}
                       </motion.span>
                     </AnimatePresence>
-                    <span className="ml-2">Geliştirin</span>
+                    <span className="ml-2">{hero.headlineSuffix}</span>
                   </span>
                 </h1>
               </Reveal>
               <Reveal delay={0.2}>
                 <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-clinical-muted lg:mx-0">
-                  Klinik ortamda aktif çalışan psikolog ve süpervizörler için tasarlanmış,
-                  tedavi odaklı bir gelişim alanı. Vaka paylaşımı, etik çerçeve ve takipli
-                  geri bildirimle supervizyon surecinizi guvenle yonetin.
+                  {hero.subtext}
                 </p>
               </Reveal>
               <Reveal delay={0.3}>
                 <div className="mt-10 flex flex-wrap justify-center gap-4 lg:justify-start">
-                  <Link href="/supervizorler" className="btn-navy">
-                    Hemen Randevu Al
+                  <Link href={hero.primaryCtaHref} className="btn-navy">
+                    {hero.primaryCtaText}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
-                  <Link href="/hizmetler" className="btn-outline-navy">
-                    Klinik Hizmetler
+                  <Link href={hero.secondaryCtaHref} className="btn-outline-navy">
+                    {hero.secondaryCtaText}
                   </Link>
                 </div>
               </Reveal>
-              
+
               <Reveal delay={0.4}>
                 <div className="mx-auto mt-16 flex max-w-2xl items-center justify-center gap-8 border-t border-black/20 pt-8 lg:mx-0 lg:justify-start">
                   <div>
-                    <div className="text-2xl font-bold text-black">40+</div>
+                    <div className="text-2xl font-bold text-black">{hero.statYears}+</div>
                     <div className="text-xs uppercase tracking-wider text-clinical-muted">Klinik Uzman</div>
                   </div>
                   <div className="h-8 w-px bg-black/20" />
                   <div>
-                    <div className="text-2xl font-bold text-black">5000+</div>
-                    <div className="text-xs uppercase tracking-wider text-clinical-muted">Tedavi Seansi</div>
+                    <div className="text-2xl font-bold text-black">{hero.statSessions}+</div>
+                    <div className="text-xs uppercase tracking-wider text-clinical-muted">Tedavi Seansı</div>
                   </div>
                   <div className="h-8 w-px bg-black/20" />
                   <div>
-                    <div className="text-2xl font-bold text-black">4.9/5</div>
+                    <div className="text-2xl font-bold text-black">{hero.statRating}/5</div>
                     <div className="text-xs uppercase tracking-wider text-clinical-muted">Memnuniyet</div>
                   </div>
                 </div>
@@ -140,12 +216,12 @@ export function HomePageClient({
               <div className="relative mx-auto w-full max-w-[460px]">
                 <div className="relative overflow-hidden rounded-[28px] border border-black/15 bg-white/60 p-3 shadow-2xl backdrop-blur-xl">
                   <div className="absolute left-6 top-6 z-20 rounded-full bg-[#d1f90b] px-3 py-1 text-xs font-bold text-black">
-                    Supervizyon Deneyimi
+                    {hero.badgeText}
                   </div>
                   <div className="relative h-[500px] w-full overflow-hidden rounded-[22px]">
                     <Image
-                      src={supervisors[0]?.photo || "/images/abdullatif.png"}
-                      alt={supervisors[0]?.fullName || "Supervizor"}
+                      src={heroImageSrc}
+                      alt={heroImageAlt}
                       fill
                       priority
                       className="object-cover"
@@ -154,7 +230,7 @@ export function HomePageClient({
                   </div>
                 </div>
 
-                {floatingKeywords.map((keyword, index) => {
+                {floatingKeywords.slice(0, 4).map((keyword, index) => {
                   const placements = [
                     "left-[-18px] top-[72px]",
                     "right-[-20px] top-[150px]",
@@ -189,10 +265,10 @@ export function HomePageClient({
       <section className="py-12 border-y border-clinical-border bg-clinical-light">
         <div className="container-wide">
           <div className="flex flex-wrap justify-between items-center gap-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-            <TrustItem icon={ShieldCheck} label="Etik Onayli" />
-            <TrustItem icon={HeartPulse} label="Tedavi Odakli Surec" />
-            <TrustItem icon={Award} label="Klinik Yetkin Uzmanlar" />
-            <TrustItem icon={Users} label="Süpervizyon Dayanismasi" />
+            <TrustItem icon={ShieldCheck} label={trustLabels[0]} />
+            <TrustItem icon={HeartPulse} label={trustLabels[1]} />
+            <TrustItem icon={Award} label={trustLabels[2]} />
+            <TrustItem icon={Users} label={trustLabels[3]} />
           </div>
         </div>
       </section>
@@ -247,27 +323,27 @@ export function HomePageClient({
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <div>
               <Reveal>
-                <span className="info-highlight text-xs uppercase tracking-widest">Neden Biz?</span>
+                <span className="info-highlight text-xs uppercase tracking-widest">{home.whyEyebrow}</span>
               </Reveal>
               <Reveal delay={0.1}>
                 <h2 className="text-4xl md:text-5xl font-display font-bold mb-8 leading-tight">
-                  Klinik Mükemmellik <br />
-                  <span className="inline-block rounded-md bg-[#d1f90b] px-3 py-1 text-black">Soft Health Deneyimiyle</span>
+                  {home.whyTitle} <br />
+                  <span className="inline-block rounded-md bg-[#d1f90b] px-3 py-1 text-black">{home.whyHighlight}</span>
                 </h2>
               </Reveal>
               
               <div className="space-y-8 mt-12">
                 <WhyItem 
-                  title="Doğrulanmış Uzman Kadrosu" 
-                  desc="Tum supervizorlerimiz aktif klinik vakalarla calisan, en az 10 yil tecrubeli uzmanlardan secilir."
+                  title={whyFeatureTitles[0]}
+                  desc={whyFeatureDescs[0]}
                 />
                 <WhyItem 
-                  title="Kolay Randevu Akisi" 
-                  desc="Takvim secimi, saat secimi ve onay tek panelde. Hatirlaticilar otomatik olarak olusturulur."
+                  title={whyFeatureTitles[1]}
+                  desc={whyFeatureDescs[1]}
                 />
                 <WhyItem 
-                  title="Sürdürülebilir Klinik Takip" 
-                  desc="Seans sonu geri bildirimleriniz kaybolmaz; bir sonraki surece dogrudan aktarilir."
+                  title={whyFeatureTitles[2]}
+                  desc={whyFeatureDescs[2]}
                 />
               </div>
             </div>
@@ -279,22 +355,22 @@ export function HomePageClient({
                        <div className="flex gap-6">
                           <div className="text-5xl font-display font-bold text-black">01</div>
                           <div>
-                             <h4 className="text-xl font-bold mb-2">Hızlı Rezervasyon</h4>
-                             <p className="text-clinical-muted text-sm leading-relaxed">Saniyeler icinde takvimi goruntuleyin ve randevunuzu kesinlestirin.</p>
+                             <h4 className="text-xl font-bold mb-2">{whyStepTitles[0]}</h4>
+                             <p className="text-clinical-muted text-sm leading-relaxed">{whyStepDescs[0]}</p>
                           </div>
                        </div>
                        <div className="flex gap-6">
                           <div className="text-5xl font-display font-bold text-black">02</div>
                           <div>
-                             <h4 className="text-xl font-bold mb-2">Tedavi Odağına Uygun Eşleşme</h4>
-                             <p className="text-clinical-muted text-sm leading-relaxed">Vaka tipinize uygun uzmanlik alanlarini one cikarir ve secimi hizlandirir.</p>
+                             <h4 className="text-xl font-bold mb-2">{whyStepTitles[1]}</h4>
+                             <p className="text-clinical-muted text-sm leading-relaxed">{whyStepDescs[1]}</p>
                           </div>
                        </div>
                        <div className="flex gap-6">
                           <div className="text-5xl font-display font-bold text-black">03</div>
                           <div>
-                             <h4 className="text-xl font-bold mb-2">Takipli Seans Deneyimi</h4>
-                             <p className="text-clinical-muted text-sm leading-relaxed">Onaylanan randevularinizin tum detaylari panelinizde anlik gorunur.</p>
+                             <h4 className="text-xl font-bold mb-2">{whyStepTitles[2]}</h4>
+                             <p className="text-clinical-muted text-sm leading-relaxed">{whyStepDescs[2]}</p>
                           </div>
                        </div>
                     </div>
@@ -420,34 +496,71 @@ export function HomePageClient({
 
       {/* TESTIMONIALS */}
       <section className="py-24 bg-clinical-white">
-        <div className="container-wide">
-          <div className="grid lg:grid-cols-3 gap-12 items-center">
-            <div className="lg:col-span-1">
-               <Reveal>
-                 <span className="eyebrow-premium">Görüşler</span>
-               </Reveal>
-               <Reveal delay={0.1}>
-                 <h2 className="h2-premium mb-6">Meslektaşlarınız Ne Diyor?</h2>
-               </Reveal>
-               <Reveal delay={0.2}>
-                 <p className="text-clinical-muted">
-                   Platformumuz üzerinden süpervizyon alan yüzlerce terapistin 
-                   deneyimlerini keşfedin.
-                 </p>
-               </Reveal>
+        <div className="container-wide mb-12 max-w-3xl lg:max-w-none">
+          <Reveal>
+            <span className="eyebrow-premium">Görüşler</span>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <h2 className="h2-premium mb-6">Meslektaşlarınız Ne Diyor?</h2>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <p className="text-clinical-muted max-w-xl">
+              Platformumuz üzerinden süpervizyon alan yüzlerce terapistin deneyimlerini
+              keşfedin.
+            </p>
+          </Reveal>
+        </div>
+        <div
+          className={`relative w-full ${prefersReducedMotion ? "overflow-x-auto" : "overflow-hidden"}`}
+        >
+          {!prefersReducedMotion ? (
+            <>
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-clinical-white to-transparent sm:w-20 md:w-28"
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-clinical-white to-transparent sm:w-20 md:w-28"
+                aria-hidden
+              />
+            </>
+          ) : null}
+          {!prefersReducedMotion ? (
+            <div className="sr-only">
+              <ul>
+                {HOMEPAGE_TESTIMONIALS.map((t) => (
+                  <li key={t.author}>
+                    {t.author}, {t.role}: {t.quote}
+                  </li>
+                ))}
+              </ul>
             </div>
-            
-            <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">
-               <TestimonialCard 
-                 quote="Süpervizyon sürecim hayatımda en çok dönüştürücü etkisi olan deneyimlerden biri. Tek bir platformda her şeyin olması işimi de çok kolaylaştırdı."
-                 author="Zeynep Akın"
-                 role="Klinik Psikolog"
-               />
-               <TestimonialCard 
-                 quote="Eğitimli simülasyon danışanlarıyla yaptığım pratikler kendime güvenimi tamamen değiştirdi. Beceri kazanmak için en güzel format."
-                 author="Mert Doğan"
-                 role="PDR Uzmanı"
-               />
+          ) : null}
+          <div className="container-wide pb-2">
+            <div
+              className={
+                prefersReducedMotion
+                  ? ""
+                  : "-mx-[calc(max(0px,(100vw-100%)/2))] px-[calc(max(0px,(100vw-100%)/2))]"
+              }
+            >
+              <div
+                className={`flex gap-6 ${
+                  prefersReducedMotion
+                    ? "w-full flex-wrap justify-center"
+                    : "w-max will-change-transform animate-testimonial-marquee"
+                }`}
+                aria-hidden={!prefersReducedMotion}
+              >
+                {testimonialMarqueeItems.map((t, i) => (
+                  <div
+                    key={`${t.author}-${i}`}
+                    className={`shrink-0 w-[min(22rem,calc(100vw-3rem))] ${prefersReducedMotion ? "max-sm:w-full" : ""}`}
+                  >
+                    <TestimonialCard quote={t.quote} author={t.author} role={t.role} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

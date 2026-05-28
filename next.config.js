@@ -7,13 +7,19 @@ const nextConfig = {
       { source: "/panelim/:path*", destination: "/dashboard/:path*", permanent: false },
       { source: "/adminpanel", destination: "/dashboard", permanent: false },
       { source: "/adminpanel/:path*", destination: "/dashboard/:path*", permanent: false },
+      { source: "/admin", destination: "/dashboard", permanent: false },
+      { source: "/admin/kullanicilar", destination: "/dashboard/uyeler", permanent: false },
+      { source: "/admin/mesajlar", destination: "/dashboard/mesajlar", permanent: false },
+      { source: "/admin/ayarlar", destination: "/dashboard/site-icerik", permanent: false },
+      { source: "/admin/:path*", destination: "/dashboard/:path*", permanent: false },
+      { source: "/dashboard/kullanicilar", destination: "/dashboard/alt-adminler", permanent: false },
       { source: "/dashboard/musaitlik", destination: "/dashboard/takvim", permanent: false },
     ];
   },
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "i.pravatar.cc" },
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "**" },
     ],
   },
   /**

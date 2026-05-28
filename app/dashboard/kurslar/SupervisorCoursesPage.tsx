@@ -2,19 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  BookOpen,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  Plus,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, Loader2, Users } from "lucide-react";
 import { useSessionUser } from "@/hooks/useSessionUser";
 import { usePanelCourses } from "@/hooks/usePanelCourses";
 import { panelFetch, panelErrorMessage } from "@/lib/panel-client";
-import type { Course, CourseEnrollment, CourseEnrollmentStatus } from "@/lib/types";
+import type { CourseEnrollment, CourseEnrollmentStatus } from "@/lib/types";
 
 const enrollmentStatusLabel: Record<CourseEnrollmentStatus, string> = {
   pending: "Beklemede",
@@ -27,19 +19,9 @@ export function SupervisorCoursesPage() {
   const router = useRouter();
   const user = useSessionUser()!;
   const { courses, loading, error, reload } = usePanelCourses(user);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [enrollments, setEnrollments] = useState<Record<string, CourseEnrollment[]>>({});
   const [loadingEnrollments, setLoadingEnrollments] = useState<string | null>(null);
-
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    maxParticipants: "",
-    startsAt: "",
-    endsAt: "",
-  });
 
   useEffect(() => {
     if (user.role !== "supervisor") router.replace("/dashboard");
@@ -62,53 +44,6 @@ export function SupervisorCoursesPage() {
     } finally {
       setLoadingEnrollments(null);
     }
-  };
-
-  const createCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await panelFetch(user, "/api/panel/courses", {
-        method: "POST",
-        body: JSON.stringify({
-          title: form.title,
-          description: form.description,
-          maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : null,
-          startsAt: form.startsAt || null,
-          endsAt: form.endsAt || null,
-        }),
-      });
-      if (!res.ok) throw new Error(await panelErrorMessage(res, "Kurs oluşturulamadı"));
-      setForm({ title: "", description: "", maxParticipants: "", startsAt: "", endsAt: "" });
-      setShowForm(false);
-      await reload();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Kurs oluşturulamadı");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleActive = async (course: Course) => {
-    const res = await panelFetch(user, `/api/panel/courses/${course.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ active: !course.active }),
-    });
-    if (!res.ok) {
-      alert(await panelErrorMessage(res, "Güncellenemedi"));
-      return;
-    }
-    await reload();
-  };
-
-  const removeCourse = async (id: string) => {
-    if (!confirm("Bu kursu silmek istediğinize emin misiniz?")) return;
-    const res = await panelFetch(user, `/api/panel/courses/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      alert(await panelErrorMessage(res, "Silinemedi"));
-      return;
-    }
-    await reload();
   };
 
   const updateEnrollment = async (
@@ -137,72 +72,17 @@ export function SupervisorCoursesPage() {
 
   return (
     <>
-      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="h2-premium text-3xl">Kurslarım</h1>
-          <p className="mt-2 text-sm text-clinical-muted">
-            Kurslarınızı yönetin; üye başvurularını onaylayın veya reddedin.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="btn-navy py-2 px-6 text-xs"
-        >
-          <Plus className="h-4 w-4" /> Yeni Kurs
-        </button>
+      <div className="mb-10">
+        <h1 className="h2-premium text-3xl">Kurs Başvuruları</h1>
+        <p className="mt-2 text-sm text-clinical-muted">
+          Size atanmış kurslardaki üye başvurularını onaylayın veya reddedin.
+        </p>
       </div>
 
       {error && (
         <div className="mb-6 rounded-premium border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
-      )}
-
-      {showForm && (
-        <form onSubmit={createCourse} className="card-premium mb-8 space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-navy-900">Yeni kurs</h2>
-          <input
-            required
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Kurs adı"
-            className="w-full rounded-premium border border-clinical-border px-4 py-2 text-sm"
-          />
-          <textarea
-            required
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Açıklama"
-            rows={4}
-            className="w-full rounded-premium border border-clinical-border px-4 py-2 text-sm"
-          />
-          <div className="grid gap-4 sm:grid-cols-3">
-            <input
-              type="number"
-              min={1}
-              value={form.maxParticipants}
-              onChange={(e) => setForm((f) => ({ ...f, maxParticipants: e.target.value }))}
-              placeholder="Kontenjan (opsiyonel)"
-              className="rounded-premium border border-clinical-border px-4 py-2 text-sm"
-            />
-            <input
-              type="date"
-              value={form.startsAt}
-              onChange={(e) => setForm((f) => ({ ...f, startsAt: e.target.value }))}
-              className="rounded-premium border border-clinical-border px-4 py-2 text-sm"
-            />
-            <input
-              type="date"
-              value={form.endsAt}
-              onChange={(e) => setForm((f) => ({ ...f, endsAt: e.target.value }))}
-              className="rounded-premium border border-clinical-border px-4 py-2 text-sm"
-            />
-          </div>
-          <button type="submit" disabled={saving} className="btn-navy py-2 px-6 text-xs disabled:opacity-50">
-            {saving ? "Kaydediliyor…" : "Oluştur"}
-          </button>
-        </form>
       )}
 
       {loading ? (
@@ -213,7 +93,7 @@ export function SupervisorCoursesPage() {
       ) : courses.length === 0 ? (
         <div className="card-premium border-dashed py-16 text-center">
           <BookOpen className="mx-auto mb-4 h-10 w-10 text-clinical-muted" />
-          <p className="text-sm text-clinical-muted">Henüz kurs eklemediniz.</p>
+          <p className="text-sm text-clinical-muted">Size atanmış kurs bulunmuyor.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -245,80 +125,63 @@ export function SupervisorCoursesPage() {
                     {course.maxParticipants != null && ` / ${course.maxParticipants} kontenjan`}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void loadEnrollments(course.id)}
-                    className="btn-outline-navy py-2 px-4 text-xs"
-                  >
-                    Başvurular
-                    {expandedId === course.id ? (
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void toggleActive(course)}
-                    className="btn-outline-navy py-2 px-4 text-xs"
-                  >
-                    {course.active ? "Yayından kaldır" : "Yayınla"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void removeCourse(course.id)}
-                    className="rounded-premium border border-red-200 p-2 text-red-600 hover:bg-red-50"
-                    aria-label="Sil"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadEnrollments(course.id)}
+                  className="btn-outline-navy py-2 px-4 text-xs"
+                >
+                  Başvurular
+                  {expandedId === course.id ? (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
               </div>
 
               {expandedId === course.id && (
                 <div className="mt-6 border-t border-clinical-border pt-6">
                   {loadingEnrollments === course.id ? (
-                    <p className="text-sm text-clinical-muted">Başvurular yükleniyor…</p>
+                    <Loader2 className="h-5 w-5 animate-spin text-navy-400" />
                   ) : (enrollments[course.id] ?? []).length === 0 ? (
                     <p className="text-sm text-clinical-muted">Henüz başvuru yok.</p>
                   ) : (
-                    <ul className="space-y-3">
-                      {(enrollments[course.id] ?? []).map((e) => (
+                    <ul className="divide-y divide-clinical-border">
+                      {(enrollments[course.id] ?? []).map((en) => (
                         <li
-                          key={e.id}
-                          className="flex flex-col justify-between gap-3 rounded-premium border border-clinical-border px-4 py-3 sm:flex-row sm:items-center"
+                          key={en.id}
+                          className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
                         >
                           <div>
-                            <p className="font-bold text-navy-900">{e.user?.fullName ?? "Üye"}</p>
-                            <p className="text-xs text-clinical-muted">{e.user?.email}</p>
-                            {e.message && (
-                              <p className="mt-1 text-sm text-clinical-text">&quot;{e.message}&quot;</p>
+                            <div className="font-semibold text-navy-900">
+                              {en.user?.fullName ?? "Kullanıcı"}
+                            </div>
+                            <div className="text-sm text-clinical-muted">{en.user?.email}</div>
+                            {en.user?.profession && (
+                              <div className="text-xs text-clinical-muted">{en.user.profession}</div>
                             )}
+                            <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                              {enrollmentStatusLabel[en.status]}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
-                              {enrollmentStatusLabel[e.status]}
-                            </span>
-                            {e.status === "pending" && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => void updateEnrollment(course.id, e.id, "approved")}
-                                  className="btn-navy py-1.5 px-3 text-[10px]"
-                                >
-                                  Onayla
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void updateEnrollment(course.id, e.id, "rejected")}
-                                  className="btn-outline-navy py-1.5 px-3 text-[10px]"
-                                >
-                                  Reddet
-                                </button>
-                              </>
-                            )}
-                          </div>
+                          {en.status === "pending" && (
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void updateEnrollment(course.id, en.id, "approved")}
+                                className="btn-navy py-2 px-4 text-xs"
+                              >
+                                Onayla
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void updateEnrollment(course.id, en.id, "rejected")}
+                                className="btn-outline-navy py-2 px-4 text-xs"
+                              >
+                                Reddet
+                              </button>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>

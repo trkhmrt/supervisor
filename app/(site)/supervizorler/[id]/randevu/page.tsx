@@ -5,10 +5,14 @@ import { AppointmentBookingClient } from "./AppointmentBookingClient";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ service?: string }>;
+};
 
-export default async function SupervisorAppointmentPage({ params }: Props) {
+export default async function SupervisorAppointmentPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { service: serviceParam } = await searchParams;
 
   try {
     await ensureDefaultAvailabilitySlots(id);
@@ -23,13 +27,31 @@ export default async function SupervisorAppointmentPage({ params }: Props) {
 
   if (!supervisor) notFound();
 
-  const service =
-    services.find((s) => s.slug === "bireysel-supervizyon") ?? services[0] ?? null;
+  const supervisorServiceIds = new Set((supervisor.services ?? []).map((s) => s.id));
+  const supervisorServiceSlugs = new Set((supervisor.services ?? []).map((s) => s.slug));
 
-  return (
-    <AppointmentBookingClient
-      supervisor={supervisor}
-      service={service}
-    />
-  );
+  let service =
+    services.find((s) => s.id === serviceParam || s.slug === serviceParam) ?? null;
+
+  if (service && supervisorServiceIds.size > 0) {
+    if (!supervisorServiceIds.has(service.id) && !supervisorServiceSlugs.has(service.slug)) {
+      service = null;
+    }
+  }
+
+  if (!service) {
+    const offered =
+      (supervisor.services ?? [])
+        .map((ss) => services.find((s) => s.id === ss.id))
+        .filter(Boolean) ?? [];
+    service =
+      offered.find((s) => s!.slug === "bireysel-supervizyon") ??
+      offered.find((s) => !s!.isGroupService) ??
+      offered[0] ??
+      services.find((s) => s.slug === "bireysel-supervizyon") ??
+      services[0] ??
+      null;
+  }
+
+  return <AppointmentBookingClient supervisor={supervisor} service={service} />;
 }

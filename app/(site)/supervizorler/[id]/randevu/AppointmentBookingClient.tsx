@@ -9,17 +9,19 @@ import {
   CalendarDays,
   Check,
   ChevronLeft,
-  ChevronRight,
   Loader2,
   Mail,
+  Phone,
   User,
+  Users,
 } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { useCurrentUser } from "@/lib/store";
-import type { Appointment, Service, Supervisor } from "@/lib/types";
+import type { Appointment, Service, ServiceGroupWithStats, Supervisor } from "@/lib/types";
 import { MonthCalendarGrid } from "@/components/calendar/MonthCalendarGrid";
 import { bookingDayStatusFromSlots } from "@/lib/calendar-booking";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { isValidPhone, normalizePhone } from "@/lib/validation/phone";
 
 type Step = "select" | "confirm" | "done";
 
@@ -31,15 +33,20 @@ export function AppointmentBookingClient({
   service: Service | null;
 }) {
   const user = useCurrentUser();
+  const isGroupService = service?.isGroupService ?? false;
 
   const [step, setStep] = useState<Step>("select");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<ServiceGroupWithStats | null>(null);
+  const [groups, setGroups] = useState<ServiceGroupWithStats[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getUTCFullYear());
   const [calMonth, setCalMonth] = useState(now.getUTCMonth() + 1);
   const [email, setEmail] = useState(user?.email ?? "");
   const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const [phone, setPhone] = useState(user?.phone ?? "");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,22 +62,62 @@ export function AppointmentBookingClient({
   }, [supervisor.availability]);
 
   const hasBookableSlots = supervisor.availability.some((s) => !s.isBooked);
+  const hasAvailableGroup = groups.some((g) => !g.isFull);
+
+  useEffect(() => {
+    if (!isGroupService || !service) {
+      setGroups([]);
+      return;
+    }
+
+    let cancelled = false;
+    setGroupsLoading(true);
+    fetch(`/api/supervisors/${supervisor.id}/service-groups?serviceId=${service.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setGroups(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setGroups([]);
+      })
+      .finally(() => {
+        if (!cancelled) setGroupsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isGroupService, service, supervisor.id]);
+
+  useEffect(() => {
+    if (user) {
+      setEmail((prev) => prev || user.email);
+      setFullName((prev) => prev || user.fullName);
+      setPhone((prev) => prev || user.phone || "");
+    }
+  }, [user]);
 
   useEffect(() => {
     const first = Object.keys(groupedByDate).sort()[0];
-    if (first) setSelectedDate((prev) => prev ?? first);
-  }, [groupedByDate]);
+    if (first && !isGroupService) setSelectedDate((prev) => prev ?? first);
+  }, [groupedByDate, isGroupService]);
 
   const daySlots = selectedDate ? groupedByDate[selectedDate] ?? [] : [];
   const morningSlots = daySlots.filter((slot) => Number(slot.startTime.split(":")[0]) < 12);
   const noonSlots = daySlots.filter((slot) => Number(slot.startTime.split(":")[0]) >= 12);
 
   async function handleSubmit() {
-    if (!selectedDate || !selectedSlot || !service) return;
+    if (!service) return;
+    if (isGroupService && !selectedGroup) return;
+    if (!isGroupService && (!selectedDate || !selectedSlot)) return;
 
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError("Google Meet linki için geçerli bir e-posta girin.");
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setError("Geçerli bir telefon numarası girin.");
       return;
     }
 
@@ -78,20 +125,28 @@ export function AppointmentBookingClient({
     setError(null);
 
     try {
+      const payload: Record<string, unknown> = {
+        supervisorId: supervisor.id,
+        superviseeEmail: trimmedEmail,
+        superviseeName: fullName.trim() || trimmedEmail.split("@")[0],
+        superviseePhone: normalizePhone(phone),
+        userId: user?.id,
+        serviceType: service.id,
+        notes: notes.trim() || undefined,
+      };
+
+      if (isGroupService) {
+        payload.serviceGroupId = selectedGroup!.id;
+      } else {
+        payload.date = selectedDate;
+        payload.startTime = selectedSlot!.start;
+        payload.endTime = selectedSlot!.end;
+      }
+
       const res = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          supervisorId: supervisor.id,
-          superviseeEmail: trimmedEmail,
-          superviseeName: fullName.trim() || trimmedEmail.split("@")[0],
-          userId: user?.id,
-          serviceType: service.id,
-          date: selectedDate,
-          startTime: selectedSlot.start,
-          endTime: selectedSlot.end,
-          notes: notes.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -109,9 +164,13 @@ export function AppointmentBookingClient({
     }
   }
 
+  const canContinue = isGroupService
+    ? !!selectedGroup && !selectedGroup.isFull
+    : !!selectedDate && !!selectedSlot;
+
   return (
     <>
-      <section className="bg-navy-950 text-white pt-32 pb-16">
+      <section className="bg-navy-950 text-white pt-site-hero pb-16">
         <div className="container-wide">
           <Reveal>
             <Link
@@ -126,18 +185,30 @@ export function AppointmentBookingClient({
             <div className="lg:col-span-8">
               <Reveal delay={0.05}>
                 <span className="text-navy-400 font-bold uppercase tracking-widest text-xs mb-4 block">
-                  Randevu Oluştur
+                  {isGroupService ? "Gruba Başvur" : "Randevu Oluştur"}
                 </span>
               </Reveal>
               <Reveal delay={0.1}>
                 <h1 className="text-4xl md:text-5xl font-display font-bold leading-tight">
-                  {supervisor.fullName} ile seans planlayın
+                  {isGroupService
+                    ? `${supervisor.fullName} — grup seçimi`
+                    : `${supervisor.fullName} ile seans planlayın`}
                 </h1>
               </Reveal>
               <Reveal delay={0.15}>
                 <p className="mt-4 text-navy-200 max-w-xl leading-relaxed">
-                  Takvimden gün ve saat seçin. Onay sonrası Google Meet bağlantısı{" "}
-                  <strong className="text-white">e-posta adresinize</strong> gönderilir.
+                  {isGroupService ? (
+                    <>
+                      Uygun grubu seçin. Onay sonrası gruba kaydınız tamamlanır ve Google Meet
+                      bağlantısı{" "}
+                      <strong className="text-white">e-posta adresinize</strong> gönderilir.
+                    </>
+                  ) : (
+                    <>
+                      Takvimden gün ve saat seçin. Onay sonrası Google Meet bağlantısı{" "}
+                      <strong className="text-white">e-posta adresinize</strong> gönderilir.
+                    </>
+                  )}
                 </p>
               </Reveal>
             </div>
@@ -183,10 +254,17 @@ export function AppointmentBookingClient({
                       className="space-y-8"
                     >
                       <h2 className="font-display text-3xl font-bold text-navy-900">
-                        Tarih ve saat
+                        {isGroupService ? "Grup seçimi" : "Tarih ve saat"}
                       </h2>
 
-                      {!hasBookableSlots ? (
+                      {isGroupService ? (
+                        <GroupPicker
+                          groups={groups}
+                          loading={groupsLoading}
+                          selectedId={selectedGroup?.id}
+                          onSelect={setSelectedGroup}
+                        />
+                      ) : !hasBookableSlots ? (
                         <p className="text-clinical-muted text-sm py-6 text-center">
                           Şu an müsait randevu saati yok. Lütfen daha sonra tekrar deneyin.
                         </p>
@@ -242,16 +320,19 @@ export function AppointmentBookingClient({
                                 {selectedSlot?.start ?? ""}
                               </span>
                             </div>
-                            <button
-                              type="button"
-                              disabled={!selectedDate || !selectedSlot}
-                              onClick={() => setStep("confirm")}
-                              className="btn-navy w-full py-4"
-                            >
-                              Devam Et
-                            </button>
                           </div>
                         </>
+                      )}
+
+                      {(isGroupService ? hasAvailableGroup || groupsLoading : hasBookableSlots) && (
+                        <button
+                          type="button"
+                          disabled={!canContinue || groupsLoading}
+                          onClick={() => setStep("confirm")}
+                          className="btn-navy w-full py-4 disabled:opacity-60"
+                        >
+                          Devam Et
+                        </button>
                       )}
                     </motion.div>
                   )}
@@ -275,13 +356,29 @@ export function AppointmentBookingClient({
                       <div className="space-y-4 rounded-premium border border-clinical-border bg-clinical-light p-6 text-sm">
                         <Row label="Uzman" value={supervisor.fullName} />
                         <Row label="Hizmet" value={service.name} />
-                        <Row
-                          label="Tarih & saat"
-                          value={`${selectedDate ? formatDate(selectedDate!) : ""} • ${selectedSlot?.start}`}
-                        />
+                        {isGroupService && selectedGroup ? (
+                          <>
+                            <Row label="Grup" value={selectedGroup.name} />
+                            <Row
+                              label="Kapasite"
+                              value={`${selectedGroup.enrolledCount}/${selectedGroup.capacity} kişi${
+                                selectedGroup.seatLabel ? ` (${selectedGroup.seatLabel})` : ""
+                              }`}
+                            />
+                          </>
+                        ) : (
+                          <Row
+                            label="Tarih & saat"
+                            value={`${selectedDate ? formatDate(selectedDate!) : ""} • ${selectedSlot?.start}`}
+                          />
+                        )}
                         <Row
                           label="Ücret"
-                          value={formatPrice(supervisor.pricePerSession, supervisor.currency)}
+                          value={
+                            supervisor.sessionFeeOnRequest
+                              ? "Seans ücreti görüşme esnasında belirtilecektir."
+                              : formatPrice(service.price || supervisor.pricePerSession, supervisor.currency)
+                          }
                         />
                       </div>
 
@@ -297,6 +394,20 @@ export function AppointmentBookingClient({
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="ornek@email.com"
+                            className="w-full rounded-premium border border-clinical-border px-4 py-3 text-sm focus:border-navy-400 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-navy-500">
+                            <Phone className="h-3.5 w-3.5" />
+                            Telefon *
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="05XX XXX XX XX"
                             className="w-full rounded-premium border border-clinical-border px-4 py-3 text-sm focus:border-navy-400 focus:outline-none"
                           />
                         </div>
@@ -344,6 +455,8 @@ export function AppointmentBookingClient({
                             <Loader2 className="h-5 w-5 animate-spin" />
                             Kaydediliyor…
                           </>
+                        ) : isGroupService ? (
+                          "Gruba Başvur"
                         ) : (
                           "Randevuyu Oluştur"
                         )}
@@ -361,7 +474,9 @@ export function AppointmentBookingClient({
                       <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600">
                         <Check className="h-10 w-10" />
                       </div>
-                      <h2 className="h2-premium mb-3">Randevunuz kaydedildi</h2>
+                      <h2 className="h2-premium mb-3">
+                        {isGroupService ? "Gruba kaydınız alındı" : "Randevunuz kaydedildi"}
+                      </h2>
                       <p className="text-clinical-muted mb-8 max-w-sm mx-auto">
                         Ödeme onayı sonrası Google Meet bağlantısı{" "}
                         <strong className="text-navy-900">{appointment.superviseeEmail}</strong>{" "}
@@ -369,9 +484,15 @@ export function AppointmentBookingClient({
                       </p>
                       <div className="mb-8 rounded-premium border border-clinical-border bg-clinical-light p-5 text-left text-sm space-y-2">
                         <div>
-                          <span className="text-clinical-muted">Randevu kodu: </span>
+                          <span className="text-clinical-muted">Kayıt kodu: </span>
                           <span className="font-mono font-bold">{appointment.id}</span>
                         </div>
+                        {appointment.serviceGroupName && (
+                          <div>
+                            <span className="text-clinical-muted">Grup: </span>
+                            <span className="font-bold">{appointment.serviceGroupName}</span>
+                          </div>
+                        )}
                         <motion.div>
                           <span className="text-clinical-muted">Tarih: </span>
                           <span className="font-bold">
@@ -396,6 +517,85 @@ export function AppointmentBookingClient({
         </div>
       </section>
     </>
+  );
+}
+
+function GroupPicker({
+  groups,
+  loading,
+  selectedId,
+  onSelect,
+}: {
+  groups: ServiceGroupWithStats[];
+  loading: boolean;
+  selectedId?: string;
+  onSelect: (group: ServiceGroupWithStats) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-navy-400" />
+      </div>
+    );
+  }
+
+  if (!groups.length) {
+    return (
+      <p className="text-clinical-muted text-sm py-6 text-center rounded-xl border border-clinical-border p-6">
+        Bu hizmet için henüz açık grup yok. Lütfen daha sonra tekrar deneyin.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {groups.map((group) => {
+        const isSelected = selectedId === group.id;
+        const disabled = group.isFull;
+        return (
+          <button
+            key={group.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => onSelect(group)}
+            className={`w-full rounded-premium border p-4 text-left transition ${
+              disabled
+                ? "border-clinical-border bg-clinical-light opacity-60 cursor-not-allowed"
+                : isSelected
+                  ? "border-navy-900 bg-navy-50 ring-2 ring-navy-900"
+                  : "border-clinical-border bg-white hover:border-navy-300"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-navy-600" />
+                  <span className="font-bold text-navy-900">{group.name}</span>
+                  {group.seatLabel && (
+                    <span className="text-xs text-clinical-muted">({group.seatLabel})</span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-clinical-muted">
+                  {group.enrolledCount}/{group.capacity} kişi kayıtlı
+                  {group.remainingSeats > 0 && ` · ${group.remainingSeats} boş yer`}
+                </p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                  group.isFull
+                    ? "bg-red-50 text-red-700"
+                    : isSelected
+                      ? "bg-navy-900 text-white"
+                      : "bg-green-50 text-green-700"
+                }`}
+              >
+                {group.isFull ? "Dolu" : isSelected ? "Seçildi" : "Müsait"}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

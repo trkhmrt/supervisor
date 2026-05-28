@@ -70,6 +70,7 @@ export const SERVICES: Service[] = [
     price: 1500,
     duration: 50,
     active: true,
+    isGroupService: false,
   },
   {
     id: "group",
@@ -90,6 +91,7 @@ export const SERVICES: Service[] = [
     price: 750,
     duration: 90,
     active: true,
+    isGroupService: true,
   },
   {
     id: "peer",
@@ -110,6 +112,7 @@ export const SERVICES: Service[] = [
     price: 450,
     duration: 90,
     active: true,
+    isGroupService: true,
   },
   {
     id: "simulation",
@@ -130,6 +133,7 @@ export const SERVICES: Service[] = [
     price: 1200,
     duration: 75,
     active: true,
+    isGroupService: false,
   },
 ];
 
@@ -338,6 +342,7 @@ export const APPOINTMENTS: Appointment[] = [
     userId: 3,
     superviseeName: "Zeynep Aydın",
     superviseeEmail: "zeynep@example.com",
+    superviseePhone: "05551234567",
     serviceType: "individual",
     date: addDaysISO(3),
     startTime: "10:30",
@@ -356,6 +361,7 @@ export const APPOINTMENTS: Appointment[] = [
     userId: 4,
     superviseeName: "Mert Doğan",
     superviseeEmail: "mert@example.com",
+    superviseePhone: "05559876543",
     serviceType: "individual",
     date: addDaysISO(5),
     startTime: "15:00",
@@ -372,6 +378,7 @@ export const APPOINTMENTS: Appointment[] = [
     userId: 5,
     superviseeName: "Selin Yıldız",
     superviseeEmail: "selin@example.com",
+    superviseePhone: "05553334455",
     serviceType: "individual",
     date: addDaysISO(-7),
     startTime: "13:00",

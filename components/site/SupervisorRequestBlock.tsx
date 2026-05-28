@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Send, Loader2, Check } from "lucide-react";
+import { Send, Loader2, Check, Phone } from "lucide-react";
+import { isValidPhone, normalizePhone } from "@/lib/validation/phone";
 
 export function SupervisorRequestBlock() {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ fullName: "", email: "", message: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", message: "" });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,9 @@ export function SupervisorRequestBlock() {
     return (
       <div className="mt-8 rounded-premium border border-green-200 bg-green-50 p-6 text-center">
         <Check className="mx-auto mb-2 h-6 w-6 text-green-600" />
-        <p className="text-sm text-green-800">Talebiniz alındı. İnceleme sonrası e-posta ile bilgilendirileceksiniz.</p>
+        <p className="text-sm text-green-800">
+          Talebiniz alındı. Telefon ile aranıp bilgilendirileceksiniz.
+        </p>
       </div>
     );
   }
@@ -55,6 +58,17 @@ export function SupervisorRequestBlock() {
         onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
         className="w-full rounded-premium border border-clinical-border px-4 py-3 text-sm"
       />
+      <div className="relative">
+        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
+        <input
+          required
+          type="tel"
+          placeholder="Telefon"
+          value={form.phone}
+          onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          className="w-full rounded-premium border border-clinical-border pl-12 pr-4 py-3 text-sm"
+        />
+      </div>
       <textarea
         placeholder="Kısa mesaj (isteğe bağlı)"
         rows={2}
@@ -69,12 +83,19 @@ export function SupervisorRequestBlock() {
           disabled={loading}
           onClick={async () => {
             setError(null);
+            if (!isValidPhone(form.phone)) {
+              setError("Geçerli bir telefon numarası girin.");
+              return;
+            }
             setLoading(true);
             try {
               const res = await fetch("/api/supervisor-applications", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
+                body: JSON.stringify({
+                  ...form,
+                  phone: normalizePhone(form.phone),
+                }),
               });
               const j = (await res.json()) as { error?: string };
               if (!res.ok) throw new Error(j.error ?? "Talep gönderilemedi");
@@ -85,16 +106,17 @@ export function SupervisorRequestBlock() {
               setLoading(false);
             }
           }}
-          className="btn-navy flex-1 py-2 text-xs disabled:opacity-50"
+          className="btn-navy flex-1 py-2 text-xs disabled:opacity-60"
         >
-          {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : (
-            <>
-              Gönder <Send className="h-4 w-4" />
-            </>
-          )}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          Gönder
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="btn-outline-navy px-4 py-2 text-xs">
-          İptal
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="btn-outline-navy py-2 px-4 text-xs"
+        >
+          Vazgeç
         </button>
       </div>
     </div>

@@ -24,8 +24,8 @@ export function UserSupervisorsPage() {
     title: "",
     photo: "https://i.pravatar.cc/300?img=12",
     bio: "",
-    license: "",
     pricePerSession: "1500",
+    sessionFeeOnRequest: false,
     yearsExperience: "10",
     expertise: "Klinik Psikoloji, Travma",
   });
@@ -71,8 +71,8 @@ export function UserSupervisorsPage() {
           title: form.title.trim(),
           photo: form.photo.trim(),
           bio: form.bio.trim(),
-          license: form.license.trim(),
           pricePerSession: Number(form.pricePerSession) || 0,
+          sessionFeeOnRequest: form.sessionFeeOnRequest,
           yearsExperience: Number(form.yearsExperience) || 0,
           expertise,
         }),
@@ -83,8 +83,8 @@ export function UserSupervisorsPage() {
         title: "",
         photo: "https://i.pravatar.cc/300?img=12",
         bio: "",
-        license: "",
         pricePerSession: "1500",
+        sessionFeeOnRequest: false,
         yearsExperience: "10",
         expertise: "Klinik Psikoloji, Travma",
       });
@@ -180,13 +180,6 @@ export function UserSupervisorsPage() {
                 className="h-24 w-full resize-none rounded-premium border border-clinical-border px-3 py-2 text-sm"
               />
               <input
-                required
-                placeholder="Lisans"
-                value={form.license}
-                onChange={(e) => setForm((f) => ({ ...f, license: e.target.value }))}
-                className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
-              />
-              <input
                 placeholder="Uzmanlıklar (virgülle)"
                 value={form.expertise}
                 onChange={(e) => setForm((f) => ({ ...f, expertise: e.target.value }))}
@@ -198,8 +191,9 @@ export function UserSupervisorsPage() {
                   min={0}
                   placeholder="Seans ücreti"
                   value={form.pricePerSession}
+                  disabled={form.sessionFeeOnRequest}
                   onChange={(e) => setForm((f) => ({ ...f, pricePerSession: e.target.value }))}
-                  className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
+                  className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm disabled:bg-clinical-light"
                 />
                 <input
                   type="number"
@@ -210,6 +204,16 @@ export function UserSupervisorsPage() {
                   className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm text-navy-900">
+                <input
+                  type="checkbox"
+                  checked={form.sessionFeeOnRequest}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sessionFeeOnRequest: e.target.checked }))
+                  }
+                />
+                Seans ücreti belirtmek istemiyor
+              </label>
               <button type="submit" disabled={creating} className="btn-navy w-full py-3 text-xs">
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Veritabanına Kaydet"}
               </button>

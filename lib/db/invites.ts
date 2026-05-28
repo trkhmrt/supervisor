@@ -164,8 +164,10 @@ export type RegisterInviteInput = {
   fullName: string;
   title: string;
   bio: string;
-  license: string;
+  license?: string;
   expertise: string[];
+  approaches?: string[];
+  serviceIds?: string[];
   pricePerSession: number;
   yearsExperience?: number;
   photo?: string;
@@ -224,6 +226,9 @@ export async function registerInvite(
     throw new InviteError(authError?.message ?? "Hesap oluşturulamadı.");
   }
 
+  const licenseValue = input.license?.trim() ? input.license.trim() : null;
+  const serviceIds = input.serviceIds ?? [];
+
   const { userRow, sup } = await prisma.$transaction(async (tx) => {
     const userRow = await tx.user.create({
       data: {
@@ -232,7 +237,7 @@ export async function registerInvite(
         fullName,
         role: "supervisor",
         title: input.title.trim(),
-        license: input.license.trim(),
+        license: licenseValue,
         emailVerified: true,
         isSuperAdmin: false,
       },
@@ -245,12 +250,15 @@ export async function registerInvite(
         title: input.title.trim(),
         photo: input.photo?.trim() || `https://i.pravatar.cc/300?u=${userRow.id}`,
         bio: input.bio.trim(),
-        license: input.license.trim(),
+        license: licenseValue,
         pricePerSession: input.pricePerSession,
-        expertise: input.expertise.length ? input.expertise : ["Genel"],
+        expertise: input.expertise,
         languages: ["Türkçe"],
-        approaches: [],
+        approaches: input.approaches ?? [],
         yearsExperience: input.yearsExperience ?? 0,
+        ...(serviceIds.length
+          ? { services: { connect: serviceIds.map((id) => ({ id })) } }
+          : {}),
       },
     });
 

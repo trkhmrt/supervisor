@@ -36,13 +36,15 @@ export interface Supervisor {
   bio: string;
   expertise: string[];
   pricePerSession: number;
+  sessionFeeOnRequest?: boolean;
   currency: "TRY" | "USD" | "EUR";
   rating: number;
   reviewCount: number;
   yearsExperience: number;
-  license: string;
+  license?: string | null;
   languages: string[];
   approaches: string[];
+  services?: Service[];
   availability: AvailabilitySlot[];
 }
 
@@ -90,7 +92,10 @@ export interface Appointment {
   userId?: number;
   superviseeName: string;
   superviseeEmail: string;
+  superviseePhone: string;
   serviceType: string;
+  serviceGroupId?: string;
+  serviceGroupName?: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -121,6 +126,28 @@ export interface Service {
   price: number;
   duration: number;
   active: boolean;
+  isGroupService: boolean;
+}
+
+export interface ServiceGroup {
+  id: string;
+  supervisorId: string;
+  serviceId: string;
+  name: string;
+  capacity: number;
+  seatLabel?: string;
+  sortOrder: number;
+  active: boolean;
+  startsAt?: string;
+  endsAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceGroupWithStats extends ServiceGroup {
+  enrolledCount: number;
+  remainingSeats: number;
+  isFull: boolean;
 }
 
 export interface BlogPost {
@@ -131,11 +158,24 @@ export interface BlogPost {
   content: string;
   cover: string;
   author: string;
+  authorId?: string;
+  authorSlug?: string;
   category: string;
   tags: string[];
   publishedAt: string;
   readingTime: number;
   published: boolean;
+}
+
+export interface Author {
+  id: string;
+  slug: string;
+  fullName: string;
+  title?: string;
+  bio: string;
+  photo: string;
+  supervisorId?: string;
+  createdAt: string;
 }
 
 export interface Review {
@@ -165,6 +205,7 @@ export interface SupervisorApplication {
   id: string;
   fullName: string;
   email: string;
+  phone: string;
   message?: string | null;
   status: SupervisorApplicationStatus;
   createdAt: string;
@@ -255,4 +296,50 @@ export interface SiteSettings {
     linkedin?: string;
     youtube?: string;
   };
+}
+
+export interface HeroContent {
+  eyebrow: string;
+  headlinePrefix: string;
+  headlineWords: string[];
+  headlineSuffix: string;
+  subtext: string;
+  primaryCtaText: string;
+  primaryCtaHref: string;
+  secondaryCtaText: string;
+  secondaryCtaHref: string;
+  statYears: number;
+  statSessions: number;
+  statRating: number;
+  imageUrl: string | null;
+  imageAlt: string;
+  badgeText: string;
+  floatingKeywords: string[];
+}
+
+export interface HomeContent {
+  trustLabels: string[];
+  whyEyebrow: string;
+  whyTitle: string;
+  whyHighlight: string;
+  whyFeatureTitles: string[];
+  whyFeatureDescs: string[];
+  whyStepTitles: string[];
+  whyStepDescs: string[];
+}
+
+export type AdDisplayMode = "IMAGE_ONLY" | "IMAGE_WITH_TEXT";
+
+export interface Advertisement {
+  id: string;
+  title: string;
+  body: string | null;
+  imageUrl: string;
+  linkUrl: string | null;
+  displayMode: AdDisplayMode;
+  active: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

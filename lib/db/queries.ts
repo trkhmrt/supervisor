@@ -17,7 +17,7 @@ export const getActiveServices = cache(async (): Promise<Service[]> => {
 /** Tüm süpervizörler — SSR listeleri. */
 export const getSupervisors = cache(async (): Promise<Supervisor[]> => {
   const rows = await prisma.supervisor.findMany({
-    include: { slots: true },
+    include: { slots: true, services: true },
     orderBy: { fullName: "asc" },
   });
   return rows.map(supervisorRowToApi);
@@ -26,7 +26,7 @@ export const getSupervisors = cache(async (): Promise<Supervisor[]> => {
 export const getSupervisorById = cache(async (id: string): Promise<Supervisor | null> => {
   const row = await prisma.supervisor.findUnique({
     where: { id },
-    include: { slots: true },
+    include: { slots: true, services: true },
   });
   return row ? supervisorRowToApi(row) : null;
 });

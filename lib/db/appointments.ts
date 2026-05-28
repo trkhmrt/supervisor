@@ -9,6 +9,7 @@ import {
 } from "@/lib/email/send";
 import type { Appointment } from "@/lib/types";
 import type { Appointment as PrismaAppointment } from "@prisma/client";
+import { isValidPhone, normalizePhone } from "@/lib/validation/phone";
 
 const APPOINTMENT_LIST_SELECT = {
   id: true,
@@ -17,7 +18,10 @@ const APPOINTMENT_LIST_SELECT = {
   userId: true,
   superviseeName: true,
   superviseeEmail: true,
+  superviseePhone: true,
   serviceType: true,
+  serviceGroupId: true,
+  serviceGroup: { select: { name: true } },
   startsAt: true,
   endsAt: true,
   status: true,
@@ -56,16 +60,20 @@ export type CreateAppointmentInput = {
   supervisorId: string;
   superviseeEmail: string;
   superviseeName: string;
+  superviseePhone: string;
   serviceType: string;
-  date: string;
-  startTime: string;
-  endTime: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  serviceGroupId?: string;
   notes?: string;
   userId?: number;
 };
 
 export function appointmentRowToApi(row: AppointmentRow): Appointment {
   const parts = sessionToParts(row.startsAt, row.endsAt);
+  const groupName =
+    "serviceGroup" in row && row.serviceGroup?.name ? row.serviceGroup.name : undefined;
   return {
     id: row.id,
     supervisorId: row.supervisorId,
@@ -73,7 +81,10 @@ export function appointmentRowToApi(row: AppointmentRow): Appointment {
     userId: row.userId ?? undefined,
     superviseeName: row.superviseeName,
     superviseeEmail: row.superviseeEmail,
+    superviseePhone: row.superviseePhone,
     serviceType: row.serviceType,
+    serviceGroupId: "serviceGroupId" in row ? row.serviceGroupId ?? undefined : undefined,
+    serviceGroupName: groupName,
     ...parts,
     status: row.status,
     meetLink: row.meetLink ?? undefined,
@@ -87,7 +98,12 @@ export function appointmentRowToApi(row: AppointmentRow): Appointment {
 export class AppointmentBookingError extends Error {
   constructor(
     message: string,
-    readonly code: "SUPERVISOR_NOT_FOUND" | "SLOT_UNAVAILABLE" | "INVALID_INPUT"
+    readonly code:
+      | "SUPERVISOR_NOT_FOUND"
+      | "SLOT_UNAVAILABLE"
+      | "GROUP_UNAVAILABLE"
+      | "GROUP_FULL"
+      | "INVALID_INPUT"
   ) {
     super(message);
     this.name = "AppointmentBookingError";
@@ -104,10 +120,14 @@ export function validateAppointmentInput(
     typeof body.superviseeEmail === "string" ? body.superviseeEmail.trim().toLowerCase() : "";
   const superviseeName =
     typeof body.superviseeName === "string" ? body.superviseeName.trim() : "";
+  const superviseePhone =
+    typeof body.superviseePhone === "string" ? body.superviseePhone.trim() : "";
   const serviceType = typeof body.serviceType === "string" ? body.serviceType.trim() : "";
   const date = typeof body.date === "string" ? body.date.trim() : "";
   const startTime = typeof body.startTime === "string" ? body.startTime.trim() : "";
   const endTime = typeof body.endTime === "string" ? body.endTime.trim() : "";
+  const serviceGroupId =
+    typeof body.serviceGroupId === "string" ? body.serviceGroupId.trim() : "";
   const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
 
   let userId: number | undefined;
@@ -118,23 +138,35 @@ export function validateAppointmentInput(
     if (Number.isFinite(n) && n > 0) userId = n;
   }
 
-  if (!supervisorId || !date || !startTime || !endTime || !serviceType) {
-    return { error: "Süpervizör, hizmet, tarih ve saat zorunludur." };
+  if (!supervisorId || !serviceType) {
+    return { error: "Süpervizör ve hizmet zorunludur." };
+  }
+  if (!serviceGroupId && (!date || !startTime || !endTime)) {
+    return { error: "Tarih ve saat zorunludur." };
+  }
+  if (serviceGroupId && (date || startTime || endTime)) {
+    return { error: "Grup hizmetinde tarih/saat seçimi gerekmez." };
   }
   if (!superviseeEmail || !EMAIL_RE.test(superviseeEmail)) {
     return { error: "Geçerli bir e-posta adresi girin." };
   }
+  if (!superviseePhone || !isValidPhone(superviseePhone)) {
+    return { error: "Geçerli bir telefon numarası girin." };
+  }
 
   const name = superviseeName || superviseeEmail.split("@")[0] || "Misafir";
+  const phone = normalizePhone(superviseePhone);
 
   return {
     supervisorId,
     superviseeEmail,
     superviseeName: name,
+    superviseePhone: phone,
     serviceType,
-    date,
-    startTime,
-    endTime,
+    date: date || undefined,
+    startTime: startTime || undefined,
+    endTime: endTime || undefined,
+    serviceGroupId: serviceGroupId || undefined,
     notes: notes || undefined,
     userId,
   };
@@ -143,7 +175,11 @@ export function validateAppointmentInput(
 export async function createAppointmentRecord(
   input: CreateAppointmentInput
 ): Promise<Appointment> {
-  const session = sessionFromParts(input.date, input.startTime, input.endTime);
+  if (input.serviceGroupId) {
+    return createGroupAppointmentRecord(input);
+  }
+
+  const session = sessionFromParts(input.date!, input.startTime!, input.endTime!);
 
   const row = await prisma.$transaction(async (tx) => {
     const supervisor = await tx.supervisor.findUnique({ where: { id: input.supervisorId } });
@@ -197,14 +233,125 @@ export async function createAppointmentRecord(
         userId,
         superviseeName: input.superviseeName,
         superviseeEmail: input.superviseeEmail,
+        superviseePhone: input.superviseePhone,
         serviceType: service?.id ?? input.serviceType,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
-        amount: supervisor.pricePerSession,
+        amount: supervisor.sessionFeeOnRequest ? 0 : supervisor.pricePerSession,
         notes: input.notes,
         status: "pending_payment",
         meetLink: generateMeetLink(),
       },
+      select: APPOINTMENT_LIST_SELECT,
+    });
+  });
+
+  return appointmentRowToApi(row);
+}
+
+async function createGroupAppointmentRecord(input: CreateAppointmentInput): Promise<Appointment> {
+  const row = await prisma.$transaction(async (tx) => {
+    const supervisor = await tx.supervisor.findUnique({ where: { id: input.supervisorId } });
+    if (!supervisor) {
+      throw new AppointmentBookingError("Süpervizör bulunamadı.", "SUPERVISOR_NOT_FOUND");
+    }
+
+    const group = await tx.serviceGroup.findFirst({
+      where: {
+        id: input.serviceGroupId,
+        supervisorId: input.supervisorId,
+        active: true,
+      },
+      include: { service: true },
+    });
+
+    if (!group) {
+      throw new AppointmentBookingError("Grup bulunamadı.", "GROUP_UNAVAILABLE");
+    }
+
+    if (!group.service.isGroupService || !group.service.active) {
+      throw new AppointmentBookingError("Bu hizmet grup başvurusu kabul etmiyor.", "GROUP_UNAVAILABLE");
+    }
+
+    const serviceMatch =
+      group.service.id === input.serviceType || group.service.slug === input.serviceType;
+    if (!serviceMatch) {
+      throw new AppointmentBookingError("Seçilen grup bu hizmete ait değil.", "GROUP_UNAVAILABLE");
+    }
+
+    const enrolledCount = await tx.serviceGroupEnrollment.count({
+      where: {
+        groupId: group.id,
+        appointment: { status: { not: "cancelled" } },
+      },
+    });
+
+    if (enrolledCount >= group.capacity) {
+      throw new AppointmentBookingError("Bu grup dolu.", "GROUP_FULL");
+    }
+
+    const duplicate = await tx.serviceGroupEnrollment.findFirst({
+      where: {
+        groupId: group.id,
+        superviseeEmail: input.superviseeEmail,
+        appointment: { status: { not: "cancelled" } },
+      },
+    });
+    if (duplicate) {
+      throw new AppointmentBookingError("Bu gruba zaten kayıtlısınız.", "GROUP_UNAVAILABLE");
+    }
+
+    let userId: number | null = null;
+    if (input.userId) {
+      const byId = await tx.user.findUnique({ where: { id: input.userId } });
+      if (byId) userId = byId.id;
+    }
+    if (!userId) {
+      const byEmail = await tx.user.findUnique({
+        where: { email: input.superviseeEmail },
+      });
+      if (byEmail) userId = byEmail.id;
+    }
+
+    const startsAt =
+      group.startsAt ??
+      new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1, 10, 0, 0));
+    const endsAt =
+      group.endsAt ??
+      new Date(startsAt.getTime() + (group.service.duration || 50) * 60 * 1000);
+
+    const appointment = await tx.appointment.create({
+      data: {
+        supervisorId: input.supervisorId,
+        supervisorName: supervisor.fullName,
+        userId,
+        superviseeName: input.superviseeName,
+        superviseeEmail: input.superviseeEmail,
+        superviseePhone: input.superviseePhone,
+        serviceType: group.service.id,
+        serviceGroupId: group.id,
+        startsAt,
+        endsAt,
+        amount: group.service.price || (supervisor.sessionFeeOnRequest ? 0 : supervisor.pricePerSession),
+        notes: input.notes,
+        status: "pending_payment",
+        meetLink: generateMeetLink(),
+      },
+    });
+
+    await tx.serviceGroupEnrollment.create({
+      data: {
+        groupId: group.id,
+        appointmentId: appointment.id,
+        superviseeEmail: input.superviseeEmail,
+        superviseeName: input.superviseeName,
+        userId,
+      },
+    });
+
+    return tx.appointment.findUniqueOrThrow({
+      where: { id: appointment.id },
+      select: APPOINTMENT_LIST_SELECT,
     });
   });
 

@@ -30,6 +30,9 @@ export function SupervisorApplicationsCard({
             <div>
               <div className="text-sm font-bold text-navy-900">{app.fullName}</div>
               <div className="text-sm text-clinical-muted">{app.email}</div>
+              {app.phone && (
+                <div className="text-sm text-clinical-muted">{app.phone}</div>
+              )}
               {app.message && (
                 <p className="mt-1 text-xs text-clinical-muted line-clamp-2">{app.message}</p>
               )}

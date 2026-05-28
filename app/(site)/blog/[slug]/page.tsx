@@ -8,6 +8,12 @@ import { Twitter, Facebook, Linkedin, Link2, Calendar, Clock, User, ArrowLeft, S
 import { Reveal } from "@/components/motion/Reveal";
 import { formatDate } from "@/lib/utils";
 import { blogContentToHtml } from "@/lib/blog-content";
+import {
+  blogAuthorProfileHref,
+  DEFAULT_BLOG_AUTHOR_PHOTO,
+  DEFAULT_BLOG_AUTHOR_TITLE,
+  resolveBlogAuthorProfileSlug,
+} from "@/lib/constants/site-authors";
 import type { BlogPost } from "@/lib/types";
 
 export default function BlogPostPage() {
@@ -56,11 +62,13 @@ export default function BlogPostPage() {
   if (missing || !post) notFound();
 
   const contentHtml = blogContentToHtml(post.content);
+  const authorHref = blogAuthorProfileHref(post);
+  const authorProfileSlug = resolveBlogAuthorProfileSlug(post);
 
   return (
       <article className="bg-white">
         {/* HEADER */}
-        <section className="bg-navy-950 text-white pt-32 pb-24 relative overflow-hidden">
+        <section className="bg-navy-950 text-white pt-site-hero pb-24 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-1/3 h-full bg-white/5 -z-0 skew-x-12 translate-x-1/2" />
           <div className="container-wide relative z-10">
             <Reveal>
@@ -85,7 +93,13 @@ export default function BlogPostPage() {
                   <div className="flex flex-wrap items-center gap-8 text-navy-300 text-sm font-bold uppercase tracking-widest">
                      <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-navy-500" />
-                        {post.author}
+                        {authorHref ? (
+                          <Link href={authorHref} className="hover:text-white transition-colors">
+                            {post.author}
+                          </Link>
+                        ) : (
+                          post.author
+                        )}
                      </div>
                      <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-navy-500" />
@@ -137,15 +151,43 @@ export default function BlogPostPage() {
                     </div>
                     
                     <div className="mt-20 pt-12 border-t border-clinical-border flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-navy-100 rounded-full flex items-center justify-center text-navy-900 font-bold">
+                       {authorHref ? (
+                         <Link
+                           href={authorHref}
+                           className="group flex items-center gap-4 rounded-premium outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-navy-900 focus-visible:ring-offset-2"
+                         >
+                           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-navy-100">
+                             {authorProfileSlug ? (
+                               <Image
+                                 src={DEFAULT_BLOG_AUTHOR_PHOTO}
+                                 alt={post.author}
+                                 fill
+                                 className="object-cover"
+                               />
+                             ) : (
+                               <span className="flex h-full w-full items-center justify-center text-navy-900 font-bold">
+                                 {post.author[0]}
+                               </span>
+                             )}
+                           </div>
+                           <div>
+                             <div className="text-sm font-bold text-navy-900 group-hover:underline">
+                               {post.author}
+                             </div>
+                             <div className="text-xs text-clinical-muted">{DEFAULT_BLOG_AUTHOR_TITLE}</div>
+                           </div>
+                         </Link>
+                       ) : (
+                         <div className="flex items-center gap-4">
+                           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-navy-100 text-navy-900 font-bold">
                              {post.author[0]}
-                          </div>
-                          <div>
+                           </div>
+                           <div>
                              <div className="text-sm font-bold text-navy-900">{post.author}</div>
-                             <div className="text-xs text-clinical-muted">Klinik Süpervizör</div>
-                          </div>
-                       </div>
+                             <div className="text-xs text-clinical-muted">{DEFAULT_BLOG_AUTHOR_TITLE}</div>
+                           </div>
+                         </div>
+                       )}
                        <button className="btn-outline-navy gap-2 text-xs">
                           <Share2 className="h-4 w-4" /> Paylaş
                        </button>

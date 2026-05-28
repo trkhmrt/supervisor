@@ -163,11 +163,13 @@ export async function signUpWithEmail(data: {
   firstName: string;
   lastName: string;
   phone: string;
+  profession: string;
 }) {
   const firstName = data.firstName.trim();
   const lastName = data.lastName.trim();
   const fullName = `${firstName} ${lastName}`.trim();
   const phone = data.phone.trim();
+  const profession = data.profession.trim();
 
   const supabase = createClient();
   const { data: signUpData, error } = await supabase.auth.signUp({
@@ -180,6 +182,7 @@ export async function signUpWithEmail(data: {
         first_name: firstName,
         last_name: lastName,
         phone,
+        profession,
         role: "user",
       },
     },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Menu, X, LogOut, UserCircle, ShieldCheck, ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { signOut } from "@/lib/auth/client";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/hizmetler", label: "Hizmetler", hasDropdown: true },
+  { href: "/egitimler", label: "Eğitimler" },
   { href: "/supervizorler", label: "Süpervizörler" },
   { href: "/hakkimizda", label: "Kurumsal" },
   { href: "/blog", label: "Blog" },
@@ -25,7 +26,10 @@ function isDarkHeroPath(pathname: string): boolean {
   return true;
 }
 
+const SITE_HEADER_VAR = "--site-header-h";
+
 export function Header({ services = [] }: { services?: Service[] }) {
+  const headerRef = useRef<HTMLElement>(null);
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
@@ -53,14 +57,36 @@ export function Header({ services = [] }: { services?: Service[] }) {
     setDropdownOpen(null);
   }, [pathname]);
 
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof document === "undefined") return;
+
+    const apply = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      document.documentElement.style.setProperty(SITE_HEADER_VAR, `${h}px`);
+    };
+
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    window.addEventListener("resize", apply);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", apply);
+      document.documentElement.style.setProperty(SITE_HEADER_VAR, "5.5rem");
+    };
+  }, [scrolled, pathname]);
+
   const onDarkHero = isDarkHeroPath(pathname);
   const lightText = onDarkHero && !scrolled;
 
   return (
     <>
       <header
+        ref={headerRef}
         className={cn(
-          "fixed top-0 z-50 w-full transition-all duration-300",
+          "fixed top-[var(--phone-reminder-banner-h,0px)] z-50 w-full transition-all duration-300",
           scrolled
             ? "bg-clinical-white/95 backdrop-blur-md border-b border-clinical-border py-4 shadow-sm"
             : "bg-transparent py-6"

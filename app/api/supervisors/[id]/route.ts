@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: Params) {
   try {
     const row = await prisma.supervisor.findUnique({
       where: { id },
-      include: { slots: true },
+      include: { slots: true, services: true },
     });
     if (!row) {
       return NextResponse.json({ error: "Süpervizör bulunamadı" }, { status: 404 });

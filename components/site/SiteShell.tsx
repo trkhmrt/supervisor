@@ -1,5 +1,7 @@
 import { Header } from "./Header";
 import { Footer } from "./Footer";
+import { AdPopup } from "./AdPopup";
+import { ProfileCompletionGate } from "@/components/auth/ProfileCompletionGate";
 import type { Service } from "@/lib/types";
 
 /** `services` SSR ile sunucudan geçirilir (Header menüsü). */
@@ -15,6 +17,8 @@ export function SiteShell({
       <Header services={services} />
       <main className="flex-1">{children}</main>
       <Footer />
+      <AdPopup />
+      <ProfileCompletionGate />
     </div>
   );
 }

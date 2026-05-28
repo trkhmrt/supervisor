@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, AlertCircle, Mail, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  EXPERTISE_AREAS,
+  THERAPY_APPROACHES,
+} from "@/lib/constants/supervisor-options";
+import type { Service } from "@/lib/types";
 
 type InviteInfo = {
   email: string;
@@ -12,21 +17,36 @@ type InviteInfo = {
   expired?: boolean;
 };
 
+type FormState = {
+  fullName: string;
+  title: string;
+  bio: string;
+  expertise: string[];
+  approaches: string[];
+  services: string[];
+  pricePerSession: number;
+  yearsExperience: number;
+};
+
+const initialForm: FormState = {
+  fullName: "",
+  title: "Psikolog",
+  bio: "",
+  expertise: [],
+  approaches: [],
+  services: [],
+  pricePerSession: 1500,
+  yearsExperience: 0,
+};
+
 export default function InviteAcceptPage() {
   const params = useParams<{ token: string }>();
   const token = params.token;
 
   const [invite, setInvite] = useState<InviteInfo | null>(null);
   const [loadingInvite, setLoadingInvite] = useState(true);
-  const [form, setForm] = useState({
-    fullName: "",
-    title: "Psikolog",
-    bio: "",
-    license: "",
-    expertise: "",
-    pricePerSession: 1500,
-    yearsExperience: 0,
-  });
+  const [services, setServices] = useState<Service[]>([]);
+  const [form, setForm] = useState<FormState>(initialForm);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -34,12 +54,16 @@ export default function InviteAcceptPage() {
   const loadInvite = useCallback(async () => {
     setLoadingInvite(true);
     try {
-      const res = await fetch(`/api/invites/${token}`, { cache: "no-store" });
-      if (!res.ok) {
+      const [inviteRes, svcRes] = await Promise.all([
+        fetch(`/api/invites/${token}`, { cache: "no-store" }),
+        fetch("/api/services", { cache: "no-store" }),
+      ]);
+      if (!inviteRes.ok) {
         setInvite(null);
         return;
       }
-      setInvite(await res.json());
+      setInvite(await inviteRes.json());
+      if (svcRes.ok) setServices(await svcRes.json());
     } catch {
       setInvite(null);
     } finally {
@@ -51,9 +75,18 @@ export default function InviteAcceptPage() {
     void loadInvite();
   }, [loadInvite]);
 
+  function toggle(field: "expertise" | "approaches" | "services", value: string) {
+    setForm((f) => ({
+      ...f,
+      [field]: f[field].includes(value)
+        ? f[field].filter((x) => x !== value)
+        : [...f[field], value],
+    }));
+  }
+
   if (loadingInvite) {
     return (
-      <section className="flex min-h-screen items-center justify-center bg-clinical-light pt-20">
+      <section className="flex min-h-screen items-center justify-center bg-clinical-light pt-site-hero">
         <Loader2 className="h-6 w-6 animate-spin text-clinical-muted" />
       </section>
     );
@@ -103,7 +136,7 @@ export default function InviteAcceptPage() {
 
   if (done) {
     return (
-      <section className="flex min-h-screen items-center justify-center bg-clinical-light pt-20">
+      <section className="flex min-h-screen items-center justify-center bg-clinical-light pt-site-hero">
         <div className="container-narrow max-w-md rounded-premium border border-clinical-border bg-white p-10 text-center shadow-xl">
           <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-600" />
           <h1 className="h3-premium mb-2">Kayıt tamamlandı</h1>
@@ -121,7 +154,7 @@ export default function InviteAcceptPage() {
 
   return (
     <section className="bg-clinical-light">
-      <div className="container-narrow grid gap-10 py-16 lg:grid-cols-2 lg:py-24">
+      <div className="container-narrow grid gap-10 py-16 lg:grid-cols-[0.85fr_1.15fr] lg:py-24">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-navy-500">
             Süpervizör kayıt formu
@@ -154,10 +187,7 @@ export default function InviteAcceptPage() {
                 const res = await fetch(`/api/invites/${token}/register`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    ...form,
-                    expertise: form.expertise,
-                  }),
+                  body: JSON.stringify(form),
                 });
                 const j = (await res.json()) as { error?: string };
                 if (!res.ok) throw new Error(j.error ?? "Kayıt yapılamadı");
@@ -187,20 +217,28 @@ export default function InviteAcceptPage() {
               <option>Psikiyatrist</option>
               <option>PDR Uzmanı</option>
             </select>
-            <input
-              required
-              placeholder="Lisans bilgisi"
-              value={form.license}
-              onChange={(e) => setForm((f) => ({ ...f, license: e.target.value }))}
-              className="input w-full"
+
+            <MultiSelect
+              label="Uzmanlık Alanları"
+              options={[...EXPERTISE_AREAS]}
+              values={form.expertise}
+              onToggle={(v) => toggle("expertise", v)}
             />
-            <input
-              required
-              placeholder="Uzmanlık (virgülle)"
-              value={form.expertise}
-              onChange={(e) => setForm((f) => ({ ...f, expertise: e.target.value }))}
-              className="input w-full"
+            <MultiSelect
+              label="Terapi Yaklaşımları"
+              options={[...THERAPY_APPROACHES]}
+              values={form.approaches}
+              onToggle={(v) => toggle("approaches", v)}
             />
+            {services.length > 0 && (
+              <MultiSelect
+                label="Sağladığım Hizmetler"
+                options={services.map((s) => ({ value: s.id, label: s.name }))}
+                values={form.services}
+                onToggle={(v) => toggle("services", v)}
+              />
+            )}
+
             <textarea
               required
               rows={4}
@@ -209,16 +247,28 @@ export default function InviteAcceptPage() {
               onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
               className="input w-full resize-none"
             />
-            <input
-              type="number"
-              min={0}
-              placeholder="Seans ücreti (TL)"
-              value={form.pricePerSession}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, pricePerSession: Number(e.target.value) }))
-              }
-              className="input w-full"
-            />
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                type="number"
+                min={0}
+                placeholder="Seans ücreti (TL)"
+                value={form.pricePerSession}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, pricePerSession: Number(e.target.value) }))
+                }
+                className="input w-full"
+              />
+              <input
+                type="number"
+                min={0}
+                placeholder="Tecrübe (yıl)"
+                value={form.yearsExperience}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, yearsExperience: Number(e.target.value) }))
+                }
+                className="input w-full"
+              />
+            </div>
 
             {error && (
               <div className="flex gap-2 rounded-premium bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -241,5 +291,42 @@ export default function InviteAcceptPage() {
         </div>
       </div>
     </section>
+  );
+}
+
+type MultiSelectOption = string | { value: string; label: string };
+
+function MultiSelect({
+  label,
+  options,
+  values,
+  onToggle,
+}: {
+  label: string;
+  options: MultiSelectOption[];
+  values: string[];
+  onToggle: (v: string) => void;
+}) {
+  const items = options.map((o) =>
+    typeof o === "string" ? { value: o, label: o } : o
+  );
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-widest text-navy-900 mb-2">
+        {label}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-3 max-h-44 overflow-y-auto rounded-premium border border-clinical-border p-3">
+        {items.map((opt) => (
+          <label key={opt.value} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={values.includes(opt.value)}
+              onChange={() => onToggle(opt.value)}
+            />
+            <span>{opt.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }

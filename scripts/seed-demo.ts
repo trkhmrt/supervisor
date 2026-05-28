@@ -41,18 +41,20 @@ async function seedServices() {
 
 async function seedSupervisors() {
   for (const sup of SUPERVISORS) {
-    const { availability: _slots, userId, id, ...data } = sup;
+    const { availability: _slots, userId, id, services: _services, ...data } = sup;
+
+    const resolvedUserId = userId
+      ? await prisma.user
+          .findUnique({ where: { id: userId } })
+          .then((u) => (u ? userId : null))
+      : null;
 
     await prisma.supervisor.upsert({
       where: { id },
       create: {
         id,
         ...data,
-        userId: userId
-          ? await prisma.user
-              .findUnique({ where: { id: userId } })
-              .then((u) => (u ? userId : null))
-          : null,
+        userId: resolvedUserId,
       },
       update: {
         fullName: data.fullName,
@@ -77,7 +79,31 @@ async function seedSupervisors() {
 }
 
 async function seedBlogPosts() {
+  const abdullatif = await prisma.supervisor.findFirst({
+    where: { fullName: { contains: "Abdullatif", mode: "insensitive" } },
+  });
+
+  const author = await prisma.author.upsert({
+    where: { slug: "abdullatif-ramazan-celik" },
+    create: {
+      slug: "abdullatif-ramazan-celik",
+      fullName: "Abdullatif Ramazan Çelik",
+      title: "Psikolog",
+      bio:
+        "Klinik psikoloji alanında bireysel ve grup süpervizyonu hizmetleri sunuyorum. Çalışmalarımı bütüncül bir yaklaşımla, danışan ve süpervizyon alanın özgün ihtiyaçlarına göre şekillendiriyorum.",
+      photo: "/images/abdullatif.png",
+      supervisorId: abdullatif?.id ?? null,
+    },
+    update: {
+      fullName: "Abdullatif Ramazan Çelik",
+      title: "Psikolog",
+      supervisorId: abdullatif?.id ?? null,
+    },
+  });
+
   for (const p of BLOG_POSTS) {
+    const authorId =
+      p.author === "Abdullatif Ramazan Çelik" ? author.id : null;
     await prisma.blogPost.upsert({
       where: { slug: p.slug },
       create: {
@@ -87,6 +113,7 @@ async function seedBlogPosts() {
         content: p.content,
         cover: p.cover,
         author: p.author,
+        authorId,
         category: p.category,
         tags: p.tags,
         publishedAt: new Date(p.publishedAt),
@@ -99,6 +126,7 @@ async function seedBlogPosts() {
         content: p.content,
         cover: p.cover,
         author: p.author,
+        authorId,
         category: p.category,
         tags: p.tags,
         publishedAt: new Date(p.publishedAt),
@@ -107,7 +135,7 @@ async function seedBlogPosts() {
       },
     });
   }
-  console.log(`Blog: ${BLOG_POSTS.length} yazı`);
+  console.log(`Blog: ${BLOG_POSTS.length} yazı, yazar: ${author.slug}`);
 }
 
 async function main() {

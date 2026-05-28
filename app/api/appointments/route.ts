@@ -22,7 +22,11 @@ export async function POST(req: Request) {
   } catch (e) {
     if (e instanceof AppointmentBookingError) {
       const status =
-        e.code === "SUPERVISOR_NOT_FOUND" ? 404 : e.code === "SLOT_UNAVAILABLE" ? 409 : 400;
+        e.code === "SUPERVISOR_NOT_FOUND"
+          ? 404
+          : e.code === "SLOT_UNAVAILABLE" || e.code === "GROUP_FULL" || e.code === "GROUP_UNAVAILABLE"
+            ? 409
+            : 400;
       return NextResponse.json({ error: e.message, code: e.code }, { status });
     }
     return NextResponse.json(

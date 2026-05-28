@@ -279,9 +279,15 @@ export function BookingPanel({
               </div>
               <div className="flex items-center justify-between pt-2">
                 <span className="text-sm text-clinical-muted">Toplam Ucret</span>
-                <span className="text-2xl font-bold text-navy-900">
-                  {formatPrice(supervisor.pricePerSession)}
-                </span>
+                {supervisor.sessionFeeOnRequest ? (
+                  <span className="text-sm font-semibold text-navy-900">
+                    Görüşme esnasında belirtilecektir
+                  </span>
+                ) : (
+                  <span className="text-2xl font-bold text-navy-900">
+                    {formatPrice(supervisor.pricePerSession)}
+                  </span>
+                )}
               </div>
             </div>
 

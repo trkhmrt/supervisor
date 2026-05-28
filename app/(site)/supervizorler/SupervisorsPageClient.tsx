@@ -2,40 +2,93 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { DbEmptyNotice } from "@/components/site/DbEmptyNotice";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
-import type { Supervisor } from "@/lib/types";
+import {
+  EXPERTISE_AREAS,
+  THERAPY_APPROACHES,
+} from "@/lib/constants/supervisor-options";
+import type { Service, Supervisor } from "@/lib/types";
+
+const ALL = "all";
 
 export function SupervisorsPageClient({
   supervisors,
+  services,
   fetchError,
 }: {
   supervisors: Supervisor[];
+  services: Service[];
   fetchError: string | null;
 }) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<string>("all");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const allExpertise = useMemo(() => {
-    const set = new Set<string>();
-    supervisors.forEach((s) => s.expertise.forEach((e) => set.add(e)));
-    return Array.from(set);
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [expertise, setExpertise] = useState<string>(searchParams.get("alan") ?? ALL);
+  const [serviceId, setServiceId] = useState<string>(searchParams.get("hizmet") ?? ALL);
+  const [approach, setApproach] = useState<string>(searchParams.get("yaklasim") ?? ALL);
+
+  const syncUrl = useCallback(
+    (next: { q?: string; alan?: string; hizmet?: string; yaklasim?: string }) => {
+      const params = new URLSearchParams();
+      const q = next.q ?? query;
+      const a = next.alan ?? expertise;
+      const h = next.hizmet ?? serviceId;
+      const y = next.yaklasim ?? approach;
+      if (q) params.set("q", q);
+      if (a && a !== ALL) params.set("alan", a);
+      if (h && h !== ALL) params.set("hizmet", h);
+      if (y && y !== ALL) params.set("yaklasim", y);
+      const qs = params.toString();
+      router.replace(qs ? `/supervizorler?${qs}` : "/supervizorler", { scroll: false });
+    },
+    [approach, expertise, query, router, serviceId]
+  );
+
+  useEffect(() => {
+    setQuery(searchParams.get("q") ?? "");
+    setExpertise(searchParams.get("alan") ?? ALL);
+    setServiceId(searchParams.get("hizmet") ?? ALL);
+    setApproach(searchParams.get("yaklasim") ?? ALL);
+  }, [searchParams]);
+
+  const expertiseOptions = useMemo(() => {
+    const used = new Set<string>();
+    supervisors.forEach((s) => s.expertise.forEach((e) => used.add(e)));
+    return EXPERTISE_AREAS.filter((e) => used.has(e));
   }, [supervisors]);
+
+  const approachOptions = useMemo(() => {
+    const used = new Set<string>();
+    supervisors.forEach((s) => s.approaches.forEach((a) => used.add(a)));
+    return THERAPY_APPROACHES.filter((a) => used.has(a));
+  }, [supervisors]);
+
+  const serviceOptions = useMemo(() => {
+    const used = new Set<string>();
+    supervisors.forEach((s) => s.services?.forEach((svc) => used.add(svc.id)));
+    return services.filter((s) => used.has(s.id));
+  }, [services, supervisors]);
 
   const filtered = supervisors.filter((s) => {
     const matchesQuery =
       query === "" ||
       s.fullName.toLowerCase().includes(query.toLowerCase()) ||
       s.expertise.some((e) => e.toLowerCase().includes(query.toLowerCase()));
-    const matchesFilter = filter === "all" || s.expertise.includes(filter);
-    return matchesQuery && matchesFilter;
+    const matchesExpertise = expertise === ALL || s.expertise.includes(expertise);
+    const matchesService =
+      serviceId === ALL || (s.services?.some((svc) => svc.id === serviceId) ?? false);
+    const matchesApproach = approach === ALL || s.approaches.includes(approach);
+    return matchesQuery && matchesExpertise && matchesService && matchesApproach;
   });
 
   return (
     <>
-      <section className="bg-navy-950 text-white pt-32 pb-20">
+      <section className="bg-navy-950 text-white pt-site-hero pb-20">
         <div className="container-wide">
           <Reveal>
             <span className="text-navy-400 font-bold uppercase tracking-widest text-xs mb-4 block">
@@ -50,36 +103,78 @@ export function SupervisorsPageClient({
           </Reveal>
           <Reveal delay={0.2}>
             <p className="text-navy-200 text-lg max-w-2xl leading-relaxed">
-              Liste sunucuda veritabanından yüklenir (SSR).
+              Uzmanlık alanı, sağladığı hizmet ve terapi yaklaşımına göre filtreleyin.
             </p>
           </Reveal>
 
           <Reveal delay={0.3} className="mt-12">
-            <div className="flex flex-col md:flex-row gap-4 max-w-4xl">
-              <div className="relative flex-1">
+            <div className="flex flex-col gap-4 max-w-5xl">
+              <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-400" />
                 <input
                   type="text"
                   placeholder="İsim veya uzmanlık alanı ara..."
                   className="w-full bg-white/5 border border-white/10 rounded-premium pl-12 pr-6 py-4 text-white placeholder-navy-400 focus:outline-none focus:border-white/30 transition-colors"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    syncUrl({ q: e.target.value });
+                  }}
                 />
               </div>
-              <select
-                className="bg-white/5 border border-white/10 rounded-premium px-6 py-4 text-white focus:outline-none focus:border-white/30 transition-colors md:w-64"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-              >
-                <option value="all" className="bg-navy-950">
-                  Tüm Uzmanlıklar
-                </option>
-                {allExpertise.map((e) => (
-                  <option key={e} value={e} className="bg-navy-950">
-                    {e}
+              <div className="grid gap-3 md:grid-cols-3">
+                <select
+                  className="bg-white/5 border border-white/10 rounded-premium px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-colors"
+                  value={expertise}
+                  onChange={(e) => {
+                    setExpertise(e.target.value);
+                    syncUrl({ alan: e.target.value });
+                  }}
+                >
+                  <option value={ALL} className="bg-navy-950">
+                    Tüm Uzmanlık Alanları
                   </option>
-                ))}
-              </select>
+                  {expertiseOptions.map((e) => (
+                    <option key={e} value={e} className="bg-navy-950">
+                      {e}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="bg-white/5 border border-white/10 rounded-premium px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-colors"
+                  value={serviceId}
+                  onChange={(e) => {
+                    setServiceId(e.target.value);
+                    syncUrl({ hizmet: e.target.value });
+                  }}
+                >
+                  <option value={ALL} className="bg-navy-950">
+                    Tüm Hizmetler
+                  </option>
+                  {serviceOptions.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-navy-950">
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="bg-white/5 border border-white/10 rounded-premium px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-colors"
+                  value={approach}
+                  onChange={(e) => {
+                    setApproach(e.target.value);
+                    syncUrl({ yaklasim: e.target.value });
+                  }}
+                >
+                  <option value={ALL} className="bg-navy-950">
+                    Tüm Terapi Yaklaşımları
+                  </option>
+                  {approachOptions.map((a) => (
+                    <option key={a} value={a} className="bg-navy-950">
+                      {a}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </Reveal>
         </div>

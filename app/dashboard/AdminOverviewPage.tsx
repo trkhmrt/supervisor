@@ -39,7 +39,7 @@ export function AdminOverviewPage() {
 
         {hasUserScope(me, "admins:list") && (
           <Link
-            href="/dashboard/kullanicilar"
+            href="/dashboard/alt-adminler"
             className="card-premium flex items-center justify-between group hover:border-navy-300 transition"
           >
             <div className="flex items-center gap-4">

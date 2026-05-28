@@ -9,7 +9,7 @@ import { createSupervisorRecord } from "@/lib/db/supervisor-create";
 export async function GET() {
   try {
     const rows = await prisma.supervisor.findMany({
-      include: { slots: true },
+      include: { slots: true, services: true },
       orderBy: { fullName: "asc" },
     });
     return NextResponse.json(rows.map(supervisorRowToApi));

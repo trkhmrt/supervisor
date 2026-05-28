@@ -8,17 +8,10 @@ import { Reveal } from "@/components/motion/Reveal";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { authErrorMessage, signUpWithEmail } from "@/lib/auth/client";
 import { redirectPathForRole } from "@/lib/auth/redirect";
+import { USER_PROFESSIONS } from "@/lib/constants/user-professions";
+import { isValidPhone, normalizePhone } from "@/lib/validation/phone";
 import { useAppStore } from "@/lib/store";
 import { SupervisorRequestBlock } from "@/components/site/SupervisorRequestBlock";
-
-function normalizePhone(value: string): string {
-  return value.replace(/\s/g, "").replace(/[()-]/g, "");
-}
-
-function isValidPhone(value: string): boolean {
-  const digits = normalizePhone(value).replace(/\D/g, "");
-  return digits.length >= 10 && digits.length <= 15;
-}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,6 +22,7 @@ export default function RegisterPage() {
     lastName: "",
     email: "",
     phone: "",
+    profession: "",
     password: "",
     accept: false,
   });
@@ -38,7 +32,7 @@ export default function RegisterPage() {
 
   if (step === "done") {
     return (
-        <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-20">
+        <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-site-hero">
           <div className="container-narrow text-center py-24 bg-white rounded-premium shadow-2xl border border-clinical-border px-12">
             <div className="w-20 h-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8">
               <ShieldCheck className="h-10 w-10" />
@@ -64,7 +58,7 @@ export default function RegisterPage() {
 
   if (step === "verify") {
     return (
-        <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-20">
+        <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-site-hero">
           <div className="container-narrow text-center py-24 bg-white rounded-premium shadow-2xl border border-clinical-border px-12">
             <div className="w-20 h-20 bg-navy-50 text-navy-900 rounded-full flex items-center justify-center mx-auto mb-8">
               <MailCheck className="h-10 w-10" />
@@ -84,7 +78,7 @@ export default function RegisterPage() {
   }
 
   return (
-      <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-32 pb-24">
+      <section className="min-h-screen bg-clinical-light flex items-center justify-center pt-site-hero pb-24">
         <div className="container-wide flex justify-center">
           <div className="w-full max-w-6xl grid lg:grid-cols-12 bg-white rounded-premium shadow-2xl overflow-hidden border border-clinical-border">
             {/* Left Side - Info */}
@@ -141,6 +135,10 @@ export default function RegisterPage() {
                     setError("Geçerli bir telefon numarası girin (en az 10 rakam).");
                     return;
                   }
+                  if (!form.profession.trim()) {
+                    setError("Mesleki rolünüzü seçin.");
+                    return;
+                  }
                   setLoading(true);
                   try {
                     const user = await signUpWithEmail({
@@ -148,6 +146,7 @@ export default function RegisterPage() {
                       lastName: form.lastName,
                       email: form.email,
                       phone: normalizePhone(form.phone),
+                      profession: form.profession,
                       password: form.password,
                     });
                     if (user) {
@@ -222,6 +221,23 @@ export default function RegisterPage() {
                       />
                     </div>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-navy-900">Mesleki rolünüz</label>
+                  <select
+                    required
+                    value={form.profession}
+                    onChange={(e) => setForm((f) => ({ ...f, profession: e.target.value }))}
+                    className="w-full bg-clinical-light border border-clinical-border rounded-premium px-5 py-4 text-sm focus:outline-none focus:border-navy-900 transition-colors"
+                  >
+                    <option value="">Seçiniz</option>
+                    {USER_PROFESSIONS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-2">

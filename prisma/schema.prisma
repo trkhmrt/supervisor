@@ -41,6 +41,11 @@ enum CourseEnrollmentStatus {
   cancelled
 }
 
+enum AdDisplayMode {
+  IMAGE_ONLY
+  IMAGE_WITH_TEXT
+}
+
 model User {
   id               Int              @id @default(autoincrement())
   supabaseAuthId   String?          @unique
@@ -89,19 +94,23 @@ model Supervisor {
   photo             String
   bio               String
   pricePerSession   Int
+  sessionFeeOnRequest Boolean            @default(false)
   currency          String             @default("TRY")
   rating            Float              @default(0)
   reviewCount       Int                @default(0)
   yearsExperience   Int                @default(0)
-  license           String
+  license           String?
   expertise         String[]
   languages         String[]
   approaches        String[]
+  services          Service[]          @relation("SupervisorServices")
   slots             AvailabilitySlot[]
   calendarDays      SupervisorCalendarDay[]
   appointments      Appointment[]
   reviews           Review[]
   courses           Course[]
+  serviceGroups     ServiceGroup[]
+  authorProfile     Author?
 }
 
 model Course {
@@ -170,7 +179,10 @@ model Appointment {
   user             User?             @relation("AppointmentMember", fields: [userId], references: [id], onDelete: SetNull)
   superviseeName   String
   superviseeEmail  String
+  superviseePhone  String            @default("")
   serviceType      String
+  serviceGroupId   String?
+  serviceGroup     ServiceGroup?     @relation(fields: [serviceGroupId], references: [id], onDelete: SetNull)
   startsAt         DateTime
   endsAt           DateTime
   status           AppointmentStatus @default(pending_payment)
@@ -179,16 +191,18 @@ model Appointment {
   amount           Int
   notes            String?
   createdAt        DateTime          @default(now())
+  groupEnrollment  ServiceGroupEnrollment?
 
   @@index([userId, startsAt(sort: Desc)])
   @@index([supervisorId, startsAt(sort: Desc)])
   @@index([startsAt(sort: Desc)])
   @@index([superviseeEmail])
+  @@index([serviceGroupId])
 }
 
 model Service {
-  id               String   @id @default(cuid())
-  slug             String   @unique
+  id               String         @id @default(cuid())
+  slug             String         @unique
   name             String
   shortDescription String
   description      String
@@ -196,7 +210,46 @@ model Service {
   icon             String
   price            Int
   duration         Int
-  active           Boolean  @default(true)
+  active           Boolean        @default(true)
+  isGroupService   Boolean        @default(false)
+  supervisors      Supervisor[]   @relation("SupervisorServices")
+  groups           ServiceGroup[]
+}
+
+model ServiceGroup {
+  id           String                   @id @default(cuid())
+  supervisorId String
+  supervisor   Supervisor               @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  serviceId    String
+  service      Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name         String
+  capacity     Int
+  seatLabel    String?
+  sortOrder    Int                      @default(0)
+  active       Boolean                  @default(true)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  enrollments  ServiceGroupEnrollment[]
+  appointments Appointment[]
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([supervisorId, serviceId, active])
+}
+
+model ServiceGroupEnrollment {
+  id              String       @id @default(cuid())
+  groupId         String
+  group           ServiceGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  appointmentId   String       @unique
+  appointment     Appointment  @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  superviseeEmail String
+  superviseeName  String
+  userId          Int?
+  createdAt       DateTime     @default(now())
+
+  @@unique([groupId, superviseeEmail])
+  @@index([groupId])
 }
 
 model BlogPost {
@@ -207,11 +260,28 @@ model BlogPost {
   content      String
   cover        String
   author       String
+  authorId     String?
+  authorRef    Author?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
   category     String
   tags         String[]
   publishedAt  DateTime
   readingTime  Int
   published    Boolean  @default(false)
+
+  @@index([authorId])
+}
+
+model Author {
+  id           String      @id @default(cuid())
+  slug         String      @unique
+  fullName     String
+  title        String?
+  bio          String
+  photo        String
+  supervisorId String?     @unique
+  supervisor   Supervisor? @relation(fields: [supervisorId], references: [id], onDelete: SetNull)
+  posts        BlogPost[]
+  createdAt    DateTime    @default(now())
 }
 
 model Review {
@@ -230,6 +300,7 @@ model SupervisorApplication {
   id        String                      @id @default(uuid())
   fullName  String
   email     String
+  phone     String                      @default("")
   message   String?
   status    SupervisorApplicationStatus @default(pending)
   createdAt DateTime                    @default(now())
@@ -271,11 +342,52 @@ model ContactMessage {
 }
 
 model SiteSettings {
-  id       String @id @default("default")
-  siteName String
-  tagline  String
-  email    String
-  phone    String
-  address  String
-  socials  Json   @default("{}")
+  id                    String   @id @default("default")
+  siteName              String   @default("Süpervizyon")
+  tagline               String   @default("")
+  email                 String   @default("")
+  phone                 String   @default("")
+  address               String   @default("")
+  socials               Json     @default("{}")
+  heroEyebrow           String?
+  heroHeadlinePrefix    String?
+  heroHeadlineWords     String[] @default([])
+  heroHeadlineSuffix    String?
+  heroSubtext           String?
+  heroPrimaryCtaText    String?
+  heroPrimaryCtaHref    String?
+  heroSecondaryCtaText  String?
+  heroSecondaryCtaHref  String?
+  heroStatYears         Int?
+  heroStatSessions      Int?
+  heroStatRating        Float?
+  heroImageUrl          String?
+  heroImageAlt          String?
+  heroBadgeText         String?
+  heroFloatingKeywords  String[] @default([])
+  homeTrustLabels       String[] @default([])
+  homeWhyEyebrow        String?
+  homeWhyTitle          String?
+  homeWhyHighlight      String?
+  homeWhyFeatureTitles  String[] @default([])
+  homeWhyFeatureDescs   String[] @default([])
+  homeWhyStepTitles     String[] @default([])
+  homeWhyStepDescs      String[] @default([])
+  updatedAt             DateTime @default(now()) @updatedAt
+}
+
+model Advertisement {
+  id          String        @id @default(cuid())
+  title       String
+  body        String?
+  imageUrl    String
+  linkUrl     String?
+  displayMode AdDisplayMode @default(IMAGE_WITH_TEXT)
+  active      Boolean       @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([active, startsAt, endsAt])
 }

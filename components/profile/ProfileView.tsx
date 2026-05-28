@@ -5,6 +5,7 @@ import { Shield } from "lucide-react";
 import { roleLabel, scopeDescription } from "@/lib/auth/display";
 import { formatDate } from "@/lib/utils";
 import { PasswordChangeForm } from "@/components/profile/PasswordChangeForm";
+import { ProfileContactEdit } from "@/components/profile/ProfileContactEdit";
 import type { SessionUser } from "@/lib/types";
 
 type ProfileViewProps = {
@@ -35,8 +36,9 @@ export function ProfileView({ user, variant }: ProfileViewProps) {
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <Field label="Ad Soyad" value={user.fullName} />
               <Field label="E-posta" value={user.email} />
+              <Field label="Telefon" value={user.phone || "—"} />
               <Field label="E-posta Doğrulama" value={user.emailVerified ? "Doğrulandı" : "Bekleniyor"} />
-              {user.profession && <Field label="Meslek/Uzmanlık" value={user.profession} />}
+              {user.profession && <Field label="Mesleki rol" value={user.profession} />}
               {user.experienceYears !== undefined && (
                 <Field label="Deneyim (yıl)" value={`${user.experienceYears}`} />
               )}
@@ -50,6 +52,10 @@ export function ProfileView({ user, variant }: ProfileViewProps) {
               )}
             </div>
           </section>
+
+          {(user.role === "user" || user.role === "supervisor") && user.authSource === "supabase" && (
+            <ProfileContactEdit user={user} />
+          )}
 
           <section>
             <h3 className="text-xs font-bold uppercase tracking-widest text-navy-900 flex items-center gap-2">

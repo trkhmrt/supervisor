@@ -53,10 +53,15 @@ const config: Config = {
         "line-grow": {
           "0%": { width: "0%" },
           "100%": { width: "100%" },
-        }
+        },
+        "testimonial-marquee": {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
       },
       animation: {
         "scroll-reveal": "scroll-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "testimonial-marquee": "testimonial-marquee 45s linear infinite",
       },
     },
   },

@@ -2,10 +2,112 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { formatDate } from "@/lib/utils";
 import type { AdminCourse, Supervisor } from "@/lib/types";
+
+function AdminCourseCreateForm({
+  supervisors,
+  onCreated,
+}: {
+  supervisors: Supervisor[];
+  onCreated: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    supervisorId: "",
+    title: "",
+    description: "",
+    maxParticipants: "",
+  });
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.supervisorId || !form.title.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/courses", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supervisorId: form.supervisorId,
+          title: form.title,
+          description: form.description,
+          maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Oluşturulamadı");
+      setForm({ supervisorId: "", title: "", description: "", maxParticipants: "" });
+      setOpen(false);
+      onCreated();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Oluşturulamadı");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="btn-navy py-2 px-6 text-xs shrink-0">
+        <Plus className="h-4 w-4" /> Yeni Eğitim
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="card-premium w-full max-w-lg space-y-3 p-4">
+      <select
+        required
+        value={form.supervisorId}
+        onChange={(e) => setForm((f) => ({ ...f, supervisorId: e.target.value }))}
+        className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
+      >
+        <option value="">Süpervizör seçin</option>
+        {supervisors.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.fullName}
+          </option>
+        ))}
+      </select>
+      <input
+        required
+        placeholder="Eğitim adı"
+        value={form.title}
+        onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+        className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
+      />
+      <textarea
+        required
+        placeholder="Açıklama"
+        rows={3}
+        value={form.description}
+        onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+        className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
+      />
+      <input
+        type="number"
+        min={1}
+        placeholder="Kontenjan"
+        value={form.maxParticipants}
+        onChange={(e) => setForm((f) => ({ ...f, maxParticipants: e.target.value }))}
+        className="w-full rounded-premium border border-clinical-border px-3 py-2 text-sm"
+      />
+      <div className="flex gap-2">
+        <button type="submit" disabled={saving} className="btn-navy py-2 px-4 text-xs disabled:opacity-50">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kaydet"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="btn-outline-navy py-2 px-4 text-xs">
+          Vazgeç
+        </button>
+      </div>
+    </form>
+  );
+}
 
 type Props = {
   supervisorsApi?: string;
@@ -66,11 +168,14 @@ export function AdminCoursesList({ supervisorsApi = "/api/adminpanel/supervisors
 
   return (
     <>
-      <div className="mb-10">
-        <h1 className="h2-premium text-3xl">Kurslar</h1>
-        <p className="mt-2 text-sm text-clinical-muted">
-          Tüm süpervizör kurslarını görüntüleyin ve filtreleyin.
-        </p>
+      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="h2-premium text-3xl">Kurslar</h1>
+          <p className="mt-2 text-sm text-clinical-muted">
+            Eğitim programlarını oluşturun, süpervizör atayın ve yönetin.
+          </p>
+        </div>
+        <AdminCourseCreateForm supervisors={supervisors} onCreated={load} />
       </div>
 
       {error && (
