@@ -225,6 +225,7 @@ export interface Course {
   title: string;
   slug: string;
   description: string;
+  cover: string;
   active: boolean;
   acceptsApplications: boolean;
   maxParticipants?: number | null;
@@ -238,6 +239,28 @@ export interface Course {
 /** Admin listesi — süpervizör adı ile */
 export interface AdminCourse extends Course {
   supervisorName: string;
+}
+
+/** Admin eğitim detayı — başvurular dahil */
+export interface AdminCourseDetail extends AdminCourse {
+  enrollments: CourseEnrollment[];
+}
+
+export interface CourseInstructorProfile {
+  id: string;
+  fullName: string;
+  title: string;
+  photo: string;
+  bio: string;
+  yearsExperience: number;
+  expertise: string[];
+  rating: number;
+  reviewCount: number;
+}
+
+/** Vitrin eğitim detayı */
+export interface PublicCourseDetail extends AdminCourse {
+  supervisorProfile: CourseInstructorProfile;
 }
 
 export interface SupervisorAdminCourseSummary {

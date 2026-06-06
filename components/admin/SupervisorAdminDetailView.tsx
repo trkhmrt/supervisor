@@ -191,7 +191,12 @@ export function SupervisorAdminDetailView({ id, listHref, coursesHref }: Props) 
               <ul className="divide-y divide-clinical-border">
                 {data.courses.map((c) => (
                   <li key={c.id} className="flex justify-between gap-4 py-3 text-sm">
-                    <span className="font-semibold text-navy-900">{c.title}</span>
+                    <Link
+                      href={`/dashboard/kurslar/${c.id}`}
+                      className="font-semibold text-navy-900 hover:underline"
+                    >
+                      {c.title}
+                    </Link>
                     <span className="shrink-0 text-clinical-muted">
                       {c.enrollmentCount} kayıt · {c.active ? "Aktif" : "Pasif"}
                     </span>

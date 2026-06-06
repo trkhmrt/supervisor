@@ -43,6 +43,7 @@ export const POST = withAuth(
         title,
         slug: typeof body.slug === "string" ? body.slug : undefined,
         description: typeof body.description === "string" ? body.description : "",
+        cover: typeof body.cover === "string" ? body.cover : undefined,
         active: typeof body.active === "boolean" ? body.active : true,
         acceptsApplications:
           typeof body.acceptsApplications === "boolean" ? body.acceptsApplications : true,

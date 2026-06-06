@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { BookOpen, Loader2, Send } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { useCurrentUser } from "@/lib/store";
@@ -154,13 +155,26 @@ function CourseCard({
   canApply: boolean;
 }) {
   return (
-    <div className="card-premium flex flex-col">
+    <div className="card-premium flex flex-col overflow-hidden p-0">
+      <Link href={`/egitimler/${course.slug}`} className="group block">
+        <div className="relative aspect-[16/10] overflow-hidden">
+          <Image
+            src={course.cover}
+            alt={course.title}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        </div>
+      </Link>
+      <div className="flex flex-1 flex-col p-6">
       <div className="mb-4 flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-premium bg-navy-50 text-navy-900">
           <BookOpen className="h-5 w-5" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-navy-900">{course.title}</h3>
+          <Link href={`/egitimler/${course.slug}`} className="text-lg font-bold text-navy-900 hover:underline">
+            {course.title}
+          </Link>
           {course.startsAt && (
             <p className="mt-1 text-xs text-clinical-muted">
               Başlangıç: {formatDate(course.startsAt)}
@@ -215,6 +229,7 @@ function CourseCard({
           Başvurmak için giriş yapın
         </Link>
       )}
+      </div>
     </div>
   );
 }

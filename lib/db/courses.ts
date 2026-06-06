@@ -2,7 +2,20 @@ import { Prisma } from "@prisma/client";
 import type { CourseEnrollmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
-import type { AdminCourse, Course, CourseEnrollment } from "@/lib/types";
+import { courseCoverUrl } from "@/lib/constants/courses";
+import type { AdminCourse, AdminCourseDetail, Course, CourseEnrollment, PublicCourseDetail } from "@/lib/types";
+
+const supervisorPublicSelect = {
+  id: true,
+  fullName: true,
+  title: true,
+  photo: true,
+  bio: true,
+  yearsExperience: true,
+  expertise: true,
+  rating: true,
+  reviewCount: true,
+} as const;
 
 function courseRowToApi(
   row: {
@@ -11,6 +24,7 @@ function courseRowToApi(
     title: string;
     slug: string;
     description: string;
+    cover: string;
     active: boolean;
     acceptsApplications: boolean;
     maxParticipants: number | null;
@@ -27,6 +41,7 @@ function courseRowToApi(
     title: row.title,
     slug: row.slug,
     description: row.description,
+    cover: courseCoverUrl(row.cover),
     active: row.active,
     acceptsApplications: row.acceptsApplications,
     maxParticipants: row.maxParticipants,
@@ -114,6 +129,55 @@ export async function listAllCoursesForAdmin(
   return result;
 }
 
+export async function getCourseDetailForAdmin(id: string): Promise<AdminCourseDetail | null> {
+  const row = await prisma.course.findUnique({
+    where: { id },
+    include: {
+      supervisor: { select: { fullName: true } },
+      _count: { select: { enrollments: true } },
+      enrollments: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: { select: { id: true, fullName: true, email: true, profession: true } },
+        },
+      },
+    },
+  });
+  if (!row) return null;
+
+  const pendingCount = row.enrollments.filter((e) => e.status === "pending").length;
+  const { enrollments, supervisor, ...courseRow } = row;
+
+  return {
+    ...courseRowToApi({ ...courseRow, pendingCount }),
+    supervisorName: supervisor.fullName,
+    enrollments: enrollments.map(enrollmentRowToApi),
+  };
+}
+
+export async function updateEnrollmentStatusByAdmin(
+  courseId: string,
+  enrollmentId: string,
+  status: CourseEnrollmentStatus
+): Promise<CourseEnrollment | null> {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) return null;
+
+  const existing = await prisma.courseEnrollment.findFirst({
+    where: { id: enrollmentId, courseId },
+  });
+  if (!existing) return null;
+
+  const row = await prisma.courseEnrollment.update({
+    where: { id: enrollmentId },
+    data: { status },
+    include: {
+      user: { select: { id: true, fullName: true, email: true, profession: true } },
+    },
+  });
+  return enrollmentRowToApi(row);
+}
+
 export async function listCoursesForSupervisor(supervisorId: string): Promise<Course[]> {
   const rows = await prisma.course.findMany({
     where: { supervisorId },
@@ -162,18 +226,30 @@ export async function listPublicCourses(): Promise<AdminCourse[]> {
   }));
 }
 
-export async function getPublicCourseBySlug(slug: string): Promise<AdminCourse | null> {
+export async function getPublicCourseBySlug(slug: string): Promise<PublicCourseDetail | null> {
   const row = await prisma.course.findFirst({
     where: { slug, active: true },
     include: {
-      supervisor: { select: { fullName: true } },
+      supervisor: { select: supervisorPublicSelect },
       _count: { select: { enrollments: true } },
     },
   });
   if (!row) return null;
+  const { supervisor, ...courseRow } = row;
   return {
-    ...courseRowToApi(row),
-    supervisorName: row.supervisor.fullName,
+    ...courseRowToApi(courseRow),
+    supervisorName: supervisor.fullName,
+    supervisorProfile: {
+      id: supervisor.id,
+      fullName: supervisor.fullName,
+      title: supervisor.title,
+      photo: supervisor.photo,
+      bio: supervisor.bio,
+      yearsExperience: supervisor.yearsExperience,
+      expertise: supervisor.expertise,
+      rating: supervisor.rating,
+      reviewCount: supervisor.reviewCount,
+    },
   };
 }
 
@@ -202,6 +278,7 @@ export type CreateCourseInput = {
   title: string;
   slug?: string;
   description: string;
+  cover?: string;
   active?: boolean;
   acceptsApplications?: boolean;
   maxParticipants?: number | null;
@@ -226,6 +303,7 @@ export async function createCourseForSupervisor(
       title,
       slug: finalSlug,
       description: input.description.trim(),
+      cover: courseCoverUrl(input.cover),
       active: input.active ?? true,
       acceptsApplications: input.acceptsApplications ?? true,
       maxParticipants: input.maxParticipants ?? null,
@@ -252,6 +330,7 @@ export async function updateCourseForSupervisor(
     data: {
       ...(data.title != null ? { title: data.title.trim() } : {}),
       ...(data.description != null ? { description: data.description.trim() } : {}),
+      ...(data.cover != null ? { cover: courseCoverUrl(data.cover) } : {}),
       ...(data.active != null ? { active: data.active } : {}),
       ...(data.acceptsApplications != null
         ? { acceptsApplications: data.acceptsApplications }

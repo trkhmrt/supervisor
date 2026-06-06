@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Calendar, Clock, Loader2, Video } from "lucide-react";
+import { PhoneWhatsAppLink } from "@/components/site/PhoneWhatsAppLink";
 import { useSessionUser } from "@/hooks/useSessionUser";
 import { usePanelAppointments } from "@/hooks/usePanelAppointments";
 import type { Appointment, Service } from "@/lib/types";
@@ -165,6 +166,11 @@ function AppointmentRow({
         <h4 className="mb-2 text-lg font-bold text-navy-900">
           {userRole === "supervisor" ? appointment.superviseeName : appointment.supervisorName}
         </h4>
+        {userRole === "supervisor" && (
+          <div className="mb-3">
+            <PhoneWhatsAppLink phone={appointment.superviseePhone} compact />
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-6 text-xs font-bold uppercase tracking-widest text-clinical-muted">
           <span className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-navy-400" />

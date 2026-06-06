@@ -4,13 +4,29 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/guard";
 import { GUARD } from "@/lib/auth/guard-presets";
 import {
-  createCourseByAdmin,
   deleteCourseByAdmin,
+  getCourseDetailForAdmin,
   updateCourseByAdmin,
 } from "@/lib/db/courses";
 import { prismaUnavailableMessage } from "@/lib/db/prisma-route";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+export const GET = withAuth(
+  async (_req, _auth, ctx: Ctx) => {
+    const { id } = await ctx.params;
+    try {
+      const course = await getCourseDetailForAdmin(id);
+      if (!course) {
+        return NextResponse.json({ error: "Eğitim bulunamadı." }, { status: 404 });
+      }
+      return NextResponse.json(course);
+    } catch (e) {
+      return NextResponse.json({ error: prismaUnavailableMessage(e) }, { status: 503 });
+    }
+  },
+  GUARD.courses.list
+);
 
 export const PATCH = withAuth(
   async (req, _auth, ctx: Ctx) => {
@@ -20,6 +36,7 @@ export const PATCH = withAuth(
       const course = await updateCourseByAdmin(id, {
         title: typeof body.title === "string" ? body.title : undefined,
         description: typeof body.description === "string" ? body.description : undefined,
+        cover: typeof body.cover === "string" ? body.cover : undefined,
         active: typeof body.active === "boolean" ? body.active : undefined,
         acceptsApplications:
           typeof body.acceptsApplications === "boolean" ? body.acceptsApplications : undefined,

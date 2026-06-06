@@ -161,14 +161,9 @@ export function Header({ services = [] }: { services?: Service[] }) {
                               <Link
                                 key={s.id}
                                 href={`/hizmetler/${s.slug}`}
-                                className="flex flex-col gap-1 p-3 rounded-xl hover:bg-navy-50 transition-colors group/item"
+                                className="block p-3 rounded-xl text-sm font-bold text-navy-900 hover:bg-navy-50 hover:text-navy-700 transition-colors"
                               >
-                                <span className="text-sm font-bold text-navy-900 group-hover/item:text-navy-700">
-                                  {s.name}
-                                </span>
-                                <span className="text-xs text-clinical-muted line-clamp-1">
-                                  {s.shortDescription}
-                                </span>
+                                {s.name}
                               </Link>
                             ))}
                             <div className="mt-2 pt-2 border-t border-clinical-border">
