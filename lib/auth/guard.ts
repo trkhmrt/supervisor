@@ -5,6 +5,7 @@ import { verifyAdminToken, ADMIN_SESSION_COOKIE } from "@/lib/auth/admin-token";
 import { hasRole, hasScope, type Scope } from "@/lib/auth/permissions";
 import { loadUserScopes } from "@/lib/auth/user-scopes";
 import { lookupPrismaUserBySupabase, syncSupabaseUser } from "@/lib/auth/sync-user";
+import { supabaseAuthProvider } from "@/lib/auth/supabase-provider";
 import type { UserRole } from "@/lib/types";
 
 export type AuthContext = {
@@ -15,6 +16,7 @@ export type AuthContext = {
   scopes: Scope[];
   source: "adminpanel" | "supabase";
   emailVerified?: boolean;
+  authProvider?: string;
 };
 
 export type GuardOptions = {
@@ -99,7 +101,9 @@ export async function authorize(options: GuardOptions = {}): Promise<GuardOk | G
 
   let appUser = await lookupPrismaUserBySupabase(user);
   if (!appUser) {
-    appUser = await syncSupabaseUser(user, { syncMetadata: true });
+    appUser = await syncSupabaseUser(user, { forceUpdate: true, syncMetadata: true });
+  } else if (appUser.supabaseAuthId !== user.id) {
+    appUser = await syncSupabaseUser(user, { forceUpdate: true, syncMetadata: true });
   }
 
   let role = appUser.role;
@@ -129,6 +133,7 @@ export async function authorize(options: GuardOptions = {}): Promise<GuardOk | G
     scopes,
     source: "supabase",
     emailVerified: appUser.emailVerified,
+    authProvider: supabaseAuthProvider(user),
   };
 
   return checkAuth(auth, options);

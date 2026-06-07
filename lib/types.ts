@@ -25,6 +25,8 @@ export interface User {
 export type SessionUser = User & {
   scopes: string[];
   authSource: AuthSource;
+  /** Supabase app_metadata.provider — "email" | "google" vb. */
+  authProvider?: string;
 };
 
 export interface Supervisor {
@@ -102,8 +104,10 @@ export interface Appointment {
   startsAt: string;
   endsAt: string;
   status: AppointmentStatus;
+  statusLabel?: string;
   meetLink?: string;
   paymentApproved: boolean;
+  receiptUrl?: string;
   amount: number;
   notes?: string;
   createdAt: string;
@@ -225,6 +229,7 @@ export interface Course {
   title: string;
   slug: string;
   description: string;
+  learningOutcomes: string[];
   cover: string;
   active: boolean;
   acceptsApplications: boolean;

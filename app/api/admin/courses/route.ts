@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/guard";
 import { GUARD } from "@/lib/auth/guard-presets";
 import { createCourseByAdmin, listAllCoursesForAdmin } from "@/lib/db/courses";
+import { parseStringArray } from "@/lib/db/admin-parse";
 import { prismaUnavailableMessage } from "@/lib/db/prisma-route";
 
 export const GET = withAuth(
@@ -43,6 +44,7 @@ export const POST = withAuth(
         title,
         slug: typeof body.slug === "string" ? body.slug : undefined,
         description: typeof body.description === "string" ? body.description : "",
+        learningOutcomes: parseStringArray(body.learningOutcomes),
         cover: typeof body.cover === "string" ? body.cover : undefined,
         active: typeof body.active === "boolean" ? body.active : true,
         acceptsApplications:

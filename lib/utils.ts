@@ -34,6 +34,18 @@ export function formatDateTime(dateInput: string | Date, time?: string) {
   return time ? `${formatted} • ${time}` : formatted;
 }
 
+/** Randevu oluşturulma vb. — gün + saat */
+export function formatDateTimeCompact(dateInput: string | Date) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function generateId() {
   return Math.random().toString(36).slice(2, 11);
 }

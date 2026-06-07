@@ -54,7 +54,7 @@ export async function createSupervisorApplication(input: {
   }
 
   const existingSupervisor = await prisma.user.findFirst({
-    where: { email, role: "supervisor" },
+    where: { email, role: { key: "supervisor" } },
   });
   if (existingSupervisor) {
     throw new ApplicationError("Bu e-posta zaten süpervizör olarak kayıtlı.");

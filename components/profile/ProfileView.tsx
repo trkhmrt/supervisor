@@ -6,6 +6,7 @@ import { roleLabel, scopeDescription } from "@/lib/auth/display";
 import { formatDate } from "@/lib/utils";
 import { PasswordChangeForm } from "@/components/profile/PasswordChangeForm";
 import { ProfileContactEdit } from "@/components/profile/ProfileContactEdit";
+import { isOAuthOnlyAccount } from "@/lib/auth/supabase-provider";
 import type { SessionUser } from "@/lib/types";
 
 type ProfileViewProps = {
@@ -16,9 +17,11 @@ type ProfileViewProps = {
 export function ProfileView({ user, variant }: ProfileViewProps) {
   const scopes = user.scopes ?? [];
   const isAdmin = user.role === "admin";
+  const oauthOnly = user.authSource === "supabase" && isOAuthOnlyAccount(user.authProvider);
   const canChangePassword =
-    (variant === "panel" && (user.role === "user" || user.role === "supervisor")) ||
-    (variant === "adminpanel" && user.authSource === "adminpanel" && isAdmin);
+    !oauthOnly &&
+    ((variant === "panel" && (user.role === "user" || user.role === "supervisor")) ||
+      (variant === "adminpanel" && user.authSource === "adminpanel" && isAdmin));
 
   return (
     <>
@@ -27,8 +30,8 @@ export function ProfileView({ user, variant }: ProfileViewProps) {
         <p className="mt-2 text-sm text-clinical-muted">{user.fullName}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="card-premium lg:col-span-2 space-y-8">
+      <div className={`grid gap-6 ${oauthOnly ? "" : "lg:grid-cols-3"}`}>
+        <div className={`card-premium space-y-8 ${oauthOnly ? "" : "lg:col-span-2"}`}>
           <section>
             <h3 className="text-xs font-bold uppercase tracking-widest text-navy-900">
               Kişisel Bilgiler
@@ -111,30 +114,32 @@ export function ProfileView({ user, variant }: ProfileViewProps) {
           </section>
         </div>
 
-        <div className="card-premium h-fit">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-navy-900">Güvenlik</h3>
-          {canChangePassword ? (
-            <>
-              <p className="mt-3 text-sm text-clinical-muted">
-                {user.role === "supervisor"
-                  ? "Şifrenizi buradan güncelleyebilirsiniz. Davet ile gelen geçici şifreyi değiştirmenizi öneririz."
-                  : variant === "adminpanel"
-                    ? "Admin panel giriş şifrenizi buradan güncelleyebilirsiniz."
-                    : "Hesap şifrenizi buradan güncelleyebilirsiniz."}
-              </p>
-              <PasswordChangeForm />
-            </>
-          ) : (
-            <>
-              <p className="mt-3 text-sm text-clinical-muted">
-                Bu hesap türü için şifre değişikliği desteklenmiyor. Yardım için destek ile iletişime geçin.
-              </p>
-              <Link href="/iletisim" className="btn-outline-navy mt-6 w-full py-3 text-xs">
-                Destek Talebi Aç
-              </Link>
-            </>
-          )}
-        </div>
+        {!oauthOnly && (
+          <div className="card-premium h-fit">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-navy-900">Güvenlik</h3>
+            {canChangePassword ? (
+              <>
+                <p className="mt-3 text-sm text-clinical-muted">
+                  {user.role === "supervisor"
+                    ? "Şifrenizi buradan güncelleyebilirsiniz. Davet ile gelen geçici şifreyi değiştirmenizi öneririz."
+                    : variant === "adminpanel"
+                      ? "Admin panel giriş şifrenizi buradan güncelleyebilirsiniz."
+                      : "Hesap şifrenizi buradan güncelleyebilirsiniz."}
+                </p>
+                <PasswordChangeForm />
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-sm text-clinical-muted">
+                  Bu hesap türü için şifre değişikliği desteklenmiyor. Yardım için destek ile iletişime geçin.
+                </p>
+                <Link href="/iletisim" className="btn-outline-navy mt-6 w-full py-3 text-xs">
+                  Destek Talebi Aç
+                </Link>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

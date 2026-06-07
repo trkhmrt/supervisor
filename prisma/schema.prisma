@@ -9,18 +9,26 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum UserRole {
-  user
-  supervisor
-  admin
+model Role {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  label       String
+  description String   @default("")
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  users       User[]
 }
 
-enum AppointmentStatus {
-  pending_payment
-  confirmed
-  completed
-  cancelled
-  rescheduled
+model AppointmentStatusLookup {
+  id                  Int           @id @default(autoincrement())
+  key                 String        @unique
+  label               String
+  description         String        @default("")
+  colorClass          String        @default("")
+  sortOrder           Int           @default(0)
+  visibleToSupervisor Boolean       @default(false)
+  active              Boolean       @default(true)
+  appointments        Appointment[]
 }
 
 enum InviteStatus {
@@ -53,7 +61,8 @@ model User {
   email            String           @unique
   password         String?
   fullName         String
-  role             UserRole
+  roleId           Int
+  role             Role             @relation(fields: [roleId], references: [id])
   isSuperAdmin     Boolean          @default(false)
   title            String?
   emailVerified    Boolean          @default(false)
@@ -66,8 +75,9 @@ model User {
   appointments     Appointment[]    @relation("AppointmentMember")
   courseEnrollments CourseEnrollment[]
   permissions      UserPermission[]
+  pageViews        PageView[]
 
-  @@index([role])
+  @@index([roleId])
 }
 
 model Permission {
@@ -121,6 +131,7 @@ model Course {
   title               String
   slug                String
   description         String
+  learningOutcomes    String[]           @default([])
   cover               String             @default("/images/abdullatif.png")
   active              Boolean            @default(true)
   acceptsApplications Boolean            @default(true)
@@ -187,9 +198,11 @@ model Appointment {
   serviceGroup     ServiceGroup?     @relation(fields: [serviceGroupId], references: [id], onDelete: SetNull)
   startsAt         DateTime
   endsAt           DateTime
-  status           AppointmentStatus @default(pending_payment)
+  statusId         Int
+  status           AppointmentStatusLookup @relation(fields: [statusId], references: [id])
   meetLink         String?
   paymentApproved  Boolean           @default(false)
+  receiptUrl       String?
   amount           Int
   notes            String?
   createdAt        DateTime          @default(now())
@@ -200,6 +213,7 @@ model Appointment {
   @@index([startsAt(sort: Desc)])
   @@index([superviseeEmail])
   @@index([serviceGroupId])
+  @@index([statusId])
 }
 
 model Service {
@@ -392,4 +406,26 @@ model Advertisement {
   updatedAt   DateTime      @updatedAt
 
   @@index([active, startsAt, endsAt])
+}
+
+model PageView {
+  id           String   @id @default(cuid())
+  path         String
+  referrer     String?
+  ipAddress    String?
+  userAgent    String?
+  browser      String?
+  os           String?
+  deviceType   String?
+  screenWidth  Int?
+  screenHeight Int?
+  sessionId    String
+  userId       Int?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+  @@index([sessionId])
+  @@index([ipAddress])
 }

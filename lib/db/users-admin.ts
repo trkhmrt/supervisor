@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { roleKeyFromRow } from "@/lib/db/lookups";
 import type { User, UserRole } from "@/lib/types";
 
 export type AdminUserRow = Pick<
@@ -13,7 +14,7 @@ export async function listUsersForAdmin(): Promise<AdminUserRow[]> {
       id: true,
       email: true,
       fullName: true,
-      role: true,
+      role: { select: { key: true } },
       emailVerified: true,
       createdAt: true,
       profession: true,
@@ -25,7 +26,7 @@ export async function listUsersForAdmin(): Promise<AdminUserRow[]> {
     id: r.id,
     email: r.email,
     fullName: r.fullName,
-    role: r.role as UserRole,
+    role: roleKeyFromRow(r.role),
     emailVerified: r.emailVerified,
     createdAt: r.createdAt.toISOString(),
     profession: r.profession ?? undefined,

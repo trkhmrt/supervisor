@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ShieldCheck, MailCheck, AlertCircle, Loader2, Phone, Mail, User, Lock } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
-import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { authErrorMessage, signUpWithEmail } from "@/lib/auth/client";
 import { redirectPathForRole } from "@/lib/auth/redirect";
 import { USER_PROFESSIONS } from "@/lib/constants/user-professions";
@@ -107,17 +106,9 @@ export default function RegisterPage() {
                <Reveal>
                   <h1 className="h2-premium mb-2">Kayıt Ol</h1>
                   <p className="text-clinical-muted text-sm mb-8">
-                    Üye hesabı oluşturun — e-posta veya Google ile kayıt olabilirsiniz.
+                    Üye hesabı oluşturmak için aşağıdaki formu doldurun.
                   </p>
                </Reveal>
-
-               <GoogleAuthButton label="Google ile kayıt ol" next="/dashboard" />
-
-                              <div className="my-8 flex items-center gap-4">
-                 <div className="h-px flex-1 bg-clinical-border" />
-                 <span className="text-xs font-bold uppercase tracking-widest text-clinical-muted">veya e-posta ile</span>
-                                <div className="h-px flex-1 bg-clinical-border" />
-               </div>
 
                <form
                 onSubmit={async (e) => {

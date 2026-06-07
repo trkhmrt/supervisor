@@ -6,6 +6,10 @@ import { Loader2, Plus, X, Mail, ChevronRight } from "lucide-react";
 import { AdminTabBar } from "@/components/admin/AdminTabBar";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { SupervisorApplicationsCard } from "@/components/admin/SupervisorApplicationsCard";
+import {
+  SupervisorPhotoUploadField,
+  uploadPendingSupervisorPhoto,
+} from "@/components/admin/SupervisorPhotoUploadField";
 import { formatDate } from "@/lib/utils";
 import {
   EXPERTISE_AREAS,
@@ -35,7 +39,7 @@ type FormState = {
 const emptyForm: FormState = {
   fullName: "",
   title: "",
-  photo: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400",
+  photo: "/images/abdullatif.png",
   bio: "",
   pricePerSession: "1500",
   sessionFeeOnRequest: false,
@@ -59,6 +63,7 @@ export function AdminSupervisorsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
 
   const [supSearch, setSupSearch] = useState("");
@@ -157,8 +162,23 @@ export function AdminSupervisorsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Oluşturulamadı.");
+
+      const newId = typeof data.id === "string" ? data.id : null;
+      if (newId && pendingPhotoFile) {
+        try {
+          await uploadPendingSupervisorPhoto(pendingPhotoFile, newId);
+        } catch (photoErr) {
+          setError(
+            photoErr instanceof Error
+              ? `Süpervizör oluşturuldu ancak fotoğraf yüklenemedi: ${photoErr.message}`
+              : "Süpervizör oluşturuldu ancak fotoğraf yüklenemedi."
+          );
+        }
+      }
+
       setShowForm(false);
       setForm(emptyForm);
+      setPendingPhotoFile(null);
       await load();
       setTab("supervisors");
     } catch (e) {
@@ -396,7 +416,11 @@ export function AdminSupervisorsPage() {
                 <Field label="Ad Soyad" value={form.fullName} onChange={(v) => setForm((f) => ({ ...f, fullName: v }))} />
                 <Field label="Unvan" value={form.title} onChange={(v) => setForm((f) => ({ ...f, title: v }))} />
               </div>
-              <Field label="Foto URL" value={form.photo} onChange={(v) => setForm((f) => ({ ...f, photo: v }))} />
+              <SupervisorPhotoUploadField
+                value={form.photo}
+                onChange={(url) => setForm((f) => ({ ...f, photo: url }))}
+                onPendingFile={setPendingPhotoFile}
+              />
               <label className="block text-xs font-bold uppercase text-navy-900">
                 Biyografi
                 <textarea

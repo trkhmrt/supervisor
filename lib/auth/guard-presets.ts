@@ -21,6 +21,16 @@ export const GUARD = {
       lightAuth: true,
       requireEmailVerified: true,
     } satisfies GuardOptions,
+    appointmentsCreate: {
+      roles: "user",
+      lightAuth: true,
+      requireEmailVerified: true,
+    } satisfies GuardOptions,
+    receiptUpload: {
+      roles: "user",
+      lightAuth: true,
+      requireEmailVerified: true,
+    } satisfies GuardOptions,
     enrollmentsList: {
       roles: ["user", "supervisor"],
       lightAuth: true,
@@ -46,6 +56,12 @@ export const GUARD = {
   appointments: {
     list: { roles: "admin", scopes: SCOPES.APPOINTMENTS_LIST } satisfies GuardOptions,
     update: { roles: "admin", scopes: SCOPES.APPOINTMENTS_UPDATE } satisfies GuardOptions,
+  },
+  reports: {
+    list: { roles: "admin", scopes: SCOPES.APPOINTMENTS_LIST } satisfies GuardOptions,
+  },
+  analytics: {
+    list: { roles: "admin", scopes: SCOPES.SETTINGS_READ } satisfies GuardOptions,
   },
   invites: {
     list: { roles: "admin", scopes: SCOPES.SUPERVISORS_CREATE } satisfies GuardOptions,

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -22,6 +23,8 @@ import { MonthCalendarGrid } from "@/components/calendar/MonthCalendarGrid";
 import { bookingDayStatusFromSlots } from "@/lib/calendar-booking";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { isValidPhone, normalizePhone } from "@/lib/validation/phone";
+import { ReceiptUploadField } from "@/components/appointments/ReceiptUploadField";
+import { RequireUserLogin } from "@/components/appointments/RequireUserLogin";
 
 type Step = "select" | "confirm" | "done";
 
@@ -33,6 +36,7 @@ export function AppointmentBookingClient({
   service: Service | null;
 }) {
   const user = useCurrentUser();
+  const pathname = usePathname();
   const isGroupService = service?.isGroupService ?? false;
 
   const [step, setStep] = useState<Step>("select");
@@ -50,7 +54,15 @@ export function AppointmentBookingClient({
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
+
+  const requiresPayment = useMemo(() => {
+    if (!service) return false;
+    if (supervisor.sessionFeeOnRequest) return false;
+    if (isGroupService) return service.price > 0;
+    return (service.price || supervisor.pricePerSession) > 0;
+  }, [service, supervisor, isGroupService]);
 
   const groupedByDate = useMemo(() => {
     const map: Record<string, typeof supervisor.availability> = {};
@@ -120,6 +132,10 @@ export function AppointmentBookingClient({
       setError("Geçerli bir telefon numarası girin.");
       return;
     }
+    if (requiresPayment && !receiptUrl) {
+      setError("Ödeme dekontu yüklemeniz gerekir.");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -133,6 +149,7 @@ export function AppointmentBookingClient({
         userId: user?.id,
         serviceType: service.id,
         notes: notes.trim() || undefined,
+        receiptUrl: receiptUrl ?? undefined,
       };
 
       if (isGroupService) {
@@ -145,6 +162,7 @@ export function AppointmentBookingClient({
 
       const res = await fetch("/api/appointments", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -243,6 +261,7 @@ export function AppointmentBookingClient({
                 Randevu için aktif bir hizmet bulunamadı.
               </div>
             ) : (
+              <RequireUserLogin loginNext={pathname}>
               <div className="card-premium card-flat-hover bg-white p-6 sm:p-8 shadow-none">
                 <AnimatePresence mode="wait">
                   {step === "select" && (
@@ -391,10 +410,9 @@ export function AppointmentBookingClient({
                           <input
                             type="email"
                             required
+                            readOnly
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="ornek@email.com"
-                            className="w-full rounded-premium border border-clinical-border px-4 py-3 text-sm focus:border-navy-400 focus:outline-none"
+                            className="w-full rounded-premium border border-clinical-border bg-clinical-light px-4 py-3 text-sm text-clinical-muted"
                           />
                         </div>
                         <div>
@@ -436,6 +454,14 @@ export function AppointmentBookingClient({
                             placeholder="Süpervizöre iletmek istediğiniz kısa bir not..."
                           />
                         </div>
+                        {requiresPayment && (
+                          <ReceiptUploadField
+                            value={receiptUrl}
+                            onChange={setReceiptUrl}
+                            onError={setError}
+                            disabled={submitting}
+                          />
+                        )}
                       </div>
 
                       {error && (
@@ -478,7 +504,11 @@ export function AppointmentBookingClient({
                         {isGroupService ? "Gruba kaydınız alındı" : "Randevunuz kaydedildi"}
                       </h2>
                       <p className="text-clinical-muted mb-8 max-w-sm mx-auto">
-                        Ödeme onayı sonrası Google Meet bağlantısı{" "}
+                        Randevunuz <strong className="text-navy-900">Ödeme Onayı Bekliyor</strong>{" "}
+                        durumunda kaydedildi.
+                        {requiresPayment
+                          ? " Dekontunuz incelendikten sonra randevunuz aktif olacak ve Google Meet bağlantısı "
+                          : " Onay sonrası Google Meet bağlantısı "}
                         <strong className="text-navy-900">{appointment.superviseeEmail}</strong>{" "}
                         adresine gönderilecektir.
                       </p>
@@ -512,6 +542,7 @@ export function AppointmentBookingClient({
                   )}
                 </AnimatePresence>
               </div>
+              </RequireUserLogin>
             )}
           </div>
         </div>

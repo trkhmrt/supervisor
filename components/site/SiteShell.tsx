@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { AdPopup } from "./AdPopup";
+import { SiteAnalyticsTracker } from "./SiteAnalyticsTracker";
 import { ProfileCompletionGate } from "@/components/auth/ProfileCompletionGate";
 import type { Service } from "@/lib/types";
 
@@ -18,6 +20,9 @@ export function SiteShell({
       <main className="flex-1">{children}</main>
       <Footer />
       <AdPopup />
+      <Suspense fallback={null}>
+        <SiteAnalyticsTracker />
+      </Suspense>
       <ProfileCompletionGate />
     </div>
   );

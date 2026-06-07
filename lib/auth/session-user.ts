@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { prismaUserToApp } from "@/lib/auth/sync-user";
 import type { AuthContext } from "@/lib/auth/guard";
 import type { Scope } from "@/lib/auth/permissions";
-import type { AuthSource, SessionUser, UserRole } from "@/lib/types";
+import type { AuthSource, SessionUser } from "@/lib/types";
 
 export async function buildSessionUser(auth: AuthContext): Promise<SessionUser | null> {
   const row = await prisma.user.findUnique({
@@ -12,7 +12,7 @@ export async function buildSessionUser(auth: AuthContext): Promise<SessionUser |
       supabaseAuthId: true,
       email: true,
       fullName: true,
-      role: true,
+      role: { select: { key: true } },
       emailVerified: true,
       createdAt: true,
       phone: true,
@@ -25,15 +25,13 @@ export async function buildSessionUser(auth: AuthContext): Promise<SessionUser |
 
   if (!row) return null;
 
-  const base = prismaUserToApp({
-    ...row,
-    role: row.role as UserRole,
-  });
+  const base = prismaUserToApp(row);
 
   return {
     ...base,
     isSuperAdmin: auth.isSuperAdmin,
     scopes: auth.scopes as Scope[],
     authSource: auth.source as AuthSource,
+    authProvider: auth.authProvider,
   };
 }

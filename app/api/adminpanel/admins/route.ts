@@ -10,7 +10,7 @@ import { loadUserScopes } from "@/lib/auth/user-scopes";
 export const GET = withAuth(
   async () => {
     const rows = await prisma.user.findMany({
-      where: { role: "admin" },
+      where: { role: { key: "admin" } },
       select: {
         id: true,
         email: true,

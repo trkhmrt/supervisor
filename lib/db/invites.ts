@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { roleConnect, roleKeyFromRow } from "@/lib/db/lookups";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { generateTemporaryPassword } from "@/lib/auth/generate-password";
 import { inviteExpiresAt } from "@/lib/db/supervisor-applications";
@@ -81,8 +82,11 @@ export async function createInvite(
   options?: { applicationId?: string; sendEmail?: boolean }
 ): Promise<SupervisorInvite & { inviteUrl: string }> {
   const normalized = email.trim().toLowerCase();
-  const existingUser = await prisma.user.findUnique({ where: { email: normalized } });
-  if (existingUser?.role === "supervisor") {
+  const existingUser = await prisma.user.findUnique({
+    where: { email: normalized },
+    include: { role: { select: { key: true } } },
+  });
+  if (existingUser && roleKeyFromRow(existingUser.role) === "supervisor") {
     throw new InviteError("Bu e-posta zaten süpervizör hesabına bağlı.");
   }
 
@@ -235,7 +239,7 @@ export async function registerInvite(
         supabaseAuthId: authData.user!.id,
         email,
         fullName,
-        role: "supervisor",
+        role: roleConnect("supervisor"),
         title: input.title.trim(),
         license: licenseValue,
         emailVerified: true,

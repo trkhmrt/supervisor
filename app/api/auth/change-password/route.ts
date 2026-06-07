@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/auth/guard";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { isOAuthOnlyAccount } from "@/lib/auth/supabase-provider";
 import { prismaUnavailableMessage } from "@/lib/db/prisma-route";
 
 export const POST = withAuth(
@@ -57,6 +58,13 @@ export const POST = withAuth(
     if (auth.source !== "supabase") {
       return NextResponse.json(
         { error: "Şifre değişikliği bu oturum türü için kullanılamıyor." },
+        { status: 400 }
+      );
+    }
+
+    if (isOAuthOnlyAccount(auth.authProvider)) {
+      return NextResponse.json(
+        { error: "Google ile giriş yapan hesaplar için şifre değişikliği kullanılamaz." },
         { status: 400 }
       );
     }

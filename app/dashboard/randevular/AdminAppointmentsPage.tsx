@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search, Check, X, Loader2 } from "lucide-react";
+import { Search, Check, X, Loader2, FileText, ExternalLink } from "lucide-react";
 import { PhoneWhatsAppLink } from "@/components/site/PhoneWhatsAppLink";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice, formatDate, formatDateTimeCompact } from "@/lib/utils";
+import {
+  APPOINTMENT_STATUS_COLORS,
+  APPOINTMENT_STATUS_LABELS,
+} from "@/lib/appointments/status-labels";
 import type { Appointment } from "@/lib/types";
 
 export function AdminAppointmentsPage() {
@@ -12,6 +16,7 @@ export function AdminAppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [viewReceipt, setViewReceipt] = useState<Appointment | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -48,6 +53,7 @@ export function AdminAppointmentsPage() {
       alert(j.error ?? "İşlem başarısız");
       return;
     }
+    setViewReceipt(null);
     await reload();
   };
 
@@ -69,7 +75,7 @@ export function AdminAppointmentsPage() {
         <div>
           <h1 className="h2-premium text-3xl">Randevular</h1>
           <p className="mt-2 text-sm text-clinical-muted">
-            Tüm sistemdeki randevular. Ödeme onayı / iptal işlemleri buradan.
+            Tüm sistemdeki randevular. Dekont inceleme, ödeme onayı ve iptal işlemleri buradan.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -79,8 +85,8 @@ export function AdminAppointmentsPage() {
             className="rounded-premium border border-clinical-border bg-white px-3 py-2 text-sm"
           >
             <option value="">Tüm Durumlar</option>
-            <option value="pending_payment">Ödeme Bekliyor</option>
-            <option value="confirmed">Onaylı</option>
+            <option value="pending_payment">Ödeme Onayı Bekliyor</option>
+            <option value="confirmed">Aktif</option>
             <option value="completed">Tamamlandı</option>
             <option value="cancelled">İptal</option>
             <option value="rescheduled">Yenilendi</option>
@@ -119,10 +125,16 @@ export function AdminAppointmentsPage() {
                     Telefon
                   </th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
-                    Tarih
+                    Seans Tarihi
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                    Oluşturulma
                   </th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
                     Ücret
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                    Dekont
                   </th>
                   <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
                     Durum
@@ -133,53 +145,87 @@ export function AdminAppointmentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-clinical-border">
-                {filtered.map((a) => (
-                  <tr key={a.id} className="hover:bg-clinical-light/50">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-navy-900">{a.superviseeName}</div>
-                      <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
-                        {a.supervisorName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <PhoneWhatsAppLink phone={a.superviseePhone} />
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {formatDate(a.date)} {a.startTime}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold">{formatPrice(a.amount)}</td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={a.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {!a.paymentApproved && a.status === "pending_payment" && (
-                          <button
-                            type="button"
-                            onClick={() => void patch(a.id, "approve_payment")}
-                            className="rounded bg-green-50 p-2 text-green-600 hover:bg-green-600 hover:text-white"
-                            title="Ödemeyi onayla"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
+                {filtered.map((a) => {
+                  const needsReceipt = a.amount > 0;
+                  const canApprove =
+                    !a.paymentApproved &&
+                    a.status === "pending_payment" &&
+                    (!needsReceipt || !!a.receiptUrl);
+
+                  return (
+                    <tr key={a.id} className="hover:bg-clinical-light/50">
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-bold text-navy-900">{a.superviseeName}</div>
+                        <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
+                          {a.supervisorName}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <PhoneWhatsAppLink phone={a.superviseePhone} />
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {formatDate(a.date)} {a.startTime}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-clinical-muted">
+                        {formatDateTimeCompact(a.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold">{formatPrice(a.amount)}</td>
+                      <td className="px-6 py-4">
+                        {needsReceipt ? (
+                          a.receiptUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => setViewReceipt(a)}
+                              className="inline-flex items-center gap-1.5 rounded bg-navy-50 px-2.5 py-1 text-xs font-bold text-navy-700 hover:bg-navy-100"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              İncele
+                            </button>
+                          ) : (
+                            <span className="text-xs font-bold text-amber-700">Bekleniyor</span>
+                          )
+                        ) : (
+                          <span className="text-xs text-clinical-muted">—</span>
                         )}
-                        {a.status !== "cancelled" && a.status !== "completed" && (
-                          <button
-                            type="button"
-                            onClick={() => void patch(a.id, "cancel")}
-                            className="rounded bg-[#f1f0f0] p-2 text-black hover:bg-black hover:text-white"
-                            title="İptal"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={a.status} />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          {!a.paymentApproved && a.status === "pending_payment" && (
+                            <button
+                              type="button"
+                              onClick={() => void patch(a.id, "approve_payment")}
+                              disabled={!canApprove}
+                              className="rounded bg-green-50 p-2 text-green-600 hover:bg-green-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                              title={
+                                canApprove
+                                  ? "Ödemeyi onayla"
+                                  : "Dekont yüklenmeden onay verilemez"
+                              }
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                          )}
+                          {a.status !== "cancelled" && a.status !== "completed" && (
+                            <button
+                              type="button"
+                              onClick={() => void patch(a.id, "cancel")}
+                              className="rounded bg-[#f1f0f0] p-2 text-black hover:bg-black hover:text-white"
+                              title="İptal"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-clinical-muted">
+                    <td colSpan={8} className="px-6 py-10 text-center text-sm text-clinical-muted">
                       Sonuç bulunamadı.
                     </td>
                   </tr>
@@ -189,22 +235,107 @@ export function AdminAppointmentsPage() {
           </div>
         </div>
       )}
+
+      {viewReceipt?.receiptUrl && (
+        <ReceiptModal
+          appointment={viewReceipt}
+          onClose={() => setViewReceipt(null)}
+          onApprove={() => void patch(viewReceipt.id, "approve_payment")}
+        />
+      )}
     </>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    pending_payment: { label: "Ödeme Bekliyor", cls: "bg-amber-50 text-amber-700 border-amber-100" },
-    confirmed: { label: "Onaylı", cls: "bg-green-50 text-green-700 border-green-100" },
-    completed: { label: "Tamamlandı", cls: "bg-navy-50 text-navy-700 border-navy-100" },
-    cancelled: { label: "İptal", cls: "border-black/15 bg-[#f1f0f0] text-black" },
-    rescheduled: { label: "Yenilendi", cls: "bg-blue-50 text-blue-700 border-blue-100" },
-  };
-  const s = map[status] ?? { label: status, cls: "bg-clinical-light text-clinical-muted" };
+function ReceiptModal({
+  appointment,
+  onClose,
+  onApprove,
+}: {
+  appointment: Appointment;
+  onClose: () => void;
+  onApprove: () => void;
+}) {
+  const url = appointment.receiptUrl!;
+  const isPdf = url.toLowerCase().includes(".pdf") || url.toLowerCase().includes("application/pdf");
+  const canApprove =
+    !appointment.paymentApproved &&
+    appointment.status === "pending_payment" &&
+    appointment.amount > 0 &&
+    !!appointment.receiptUrl;
+
   return (
-    <span className={`inline-block rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${s.cls}`}>
-      {s.label}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-premium bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-clinical-border px-6 py-4">
+          <div>
+            <h3 className="font-bold text-navy-900">Ödeme Dekontu</h3>
+            <p className="text-xs text-clinical-muted mt-0.5">
+              {appointment.superviseeName} · {formatPrice(appointment.amount)}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded p-1 hover:bg-clinical-light">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-auto p-6">
+          {isPdf ? (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <FileText className="h-16 w-16 text-navy-300" />
+              <p className="text-sm text-clinical-muted">PDF dekont</p>
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-navy py-2 px-4 text-xs inline-flex items-center gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                PDF&apos;i Aç
+              </a>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="Ödeme dekontu" className="mx-auto max-h-[50vh] rounded-premium border border-clinical-border object-contain" />
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-clinical-border px-6 py-4">
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-outline-navy py-2 px-4 text-xs inline-flex items-center gap-2"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Yeni Sekmede Aç
+          </a>
+          {canApprove && (
+            <button type="button" onClick={onApprove} className="btn-navy py-2 px-4 text-xs">
+              Ödemeyi Onayla
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const label =
+    APPOINTMENT_STATUS_LABELS[status as keyof typeof APPOINTMENT_STATUS_LABELS] ?? status;
+  const cls =
+    APPOINTMENT_STATUS_COLORS[status as keyof typeof APPOINTMENT_STATUS_COLORS] ??
+    "bg-clinical-light text-clinical-muted";
+  return (
+    <span className={`inline-block rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${cls}`}>
+      {label}
     </span>
   );
 }

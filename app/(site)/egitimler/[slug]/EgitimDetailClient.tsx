@@ -12,7 +12,8 @@ import {
   Star,
   Users,
 } from "lucide-react";
-import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
+import { Reveal } from "@/components/motion/Reveal";
+import { CourseLearningOutcomesSection } from "@/components/site/CourseLearningOutcomesSection";
 import { formatDate } from "@/lib/utils";
 import { CourseApplyButton } from "./CourseApplyButton";
 import type { PublicCourseDetail } from "@/lib/types";
@@ -36,6 +37,7 @@ function splitDescription(text: string): { lead: string; paragraphs: string[] } 
 
 export function EgitimDetailClient({ course }: { course: PublicCourseDetail }) {
   const instructor = course.supervisorProfile;
+  const learningOutcomes = course.learningOutcomes ?? [];
   const dateRange = formatDateRange(course.startsAt, course.endsAt);
   const { lead, paragraphs } = splitDescription(course.description);
   const spotsLeft =
@@ -113,8 +115,14 @@ export function EgitimDetailClient({ course }: { course: PublicCourseDetail }) {
         <div className="container-wide">
           <div className="grid gap-16 lg:grid-cols-12">
             <div className="lg:col-span-8 space-y-14">
-              {paragraphs.length > 0 && (
+              {learningOutcomes.length > 0 && (
                 <Reveal>
+                  <CourseLearningOutcomesSection items={learningOutcomes} />
+                </Reveal>
+              )}
+
+              {paragraphs.length > 0 && (
+                <Reveal delay={learningOutcomes.length > 0 ? 0.05 : 0}>
                   <div>
                     <span className="eyebrow-premium">Program içeriği</span>
                     <div className="space-y-5 text-base leading-loose text-clinical-text">
@@ -126,23 +134,12 @@ export function EgitimDetailClient({ course }: { course: PublicCourseDetail }) {
                 </Reveal>
               )}
 
-              {instructor.expertise.length > 0 && (
+              {instructor.expertise.length > 0 && learningOutcomes.length === 0 && (
                 <Reveal delay={0.05}>
-                  <div>
-                    <span className="eyebrow-premium">Çalışılacak başlıklar</span>
-                    <StaggerContainer className="grid gap-3 sm:grid-cols-2">
-                      {instructor.expertise.map((item) => (
-                        <StaggerItem key={item}>
-                          <div className="flex items-start gap-3 rounded-premium border border-clinical-border bg-clinical-light p-4">
-                            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-navy-900" />
-                            <span className="text-sm font-medium leading-relaxed text-navy-900">
-                              {item}
-                            </span>
-                          </div>
-                        </StaggerItem>
-                      ))}
-                    </StaggerContainer>
-                  </div>
+                  <CourseLearningOutcomesSection
+                    items={instructor.expertise}
+                    title="Çalışılacak başlıklar"
+                  />
                 </Reveal>
               )}
 

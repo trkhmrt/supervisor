@@ -14,6 +14,22 @@ const ICONS = new Set(["user", "users", "handshake", "stage"]);
 
 type Ctx = { params: Promise<{ id: string }> };
 
+export const GET = withAuth(
+  async (_req, _auth, ctx: Ctx) => {
+    const { id } = await ctx.params;
+    try {
+      const row = await prisma.service.findUnique({ where: { id } });
+      if (!row) {
+        return NextResponse.json({ error: "Hizmet bulunamadı" }, { status: 404 });
+      }
+      return NextResponse.json(serviceRowToApi(row));
+    } catch (e) {
+      return NextResponse.json({ error: prismaUnavailableMessage(e) }, { status: 503 });
+    }
+  },
+  GUARD.services.list
+);
+
 export const PATCH = withAuth(
   async (req, _auth, ctx: Ctx) => {
     const { id } = await ctx.params;

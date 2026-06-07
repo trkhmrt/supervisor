@@ -8,6 +8,7 @@ import {
   getCourseDetailForAdmin,
   updateCourseByAdmin,
 } from "@/lib/db/courses";
+import { parseStringArray } from "@/lib/db/admin-parse";
 import { prismaUnavailableMessage } from "@/lib/db/prisma-route";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -36,6 +37,8 @@ export const PATCH = withAuth(
       const course = await updateCourseByAdmin(id, {
         title: typeof body.title === "string" ? body.title : undefined,
         description: typeof body.description === "string" ? body.description : undefined,
+        learningOutcomes:
+          body.learningOutcomes !== undefined ? parseStringArray(body.learningOutcomes) : undefined,
         cover: typeof body.cover === "string" ? body.cover : undefined,
         active: typeof body.active === "boolean" ? body.active : undefined,
         acceptsApplications:

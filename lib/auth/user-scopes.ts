@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ALL_SCOPES, type Scope } from "@/lib/auth/permissions";
+import { roleKeyFromRow } from "@/lib/db/lookups";
 import type { UserRole } from "@/lib/types";
 
 export async function loadUserScopes(userId: number): Promise<{
@@ -9,14 +10,17 @@ export async function loadUserScopes(userId: number): Promise<{
 }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { permissions: { include: { permission: true } } },
+    include: {
+      role: { select: { key: true } },
+      permissions: { include: { permission: true } },
+    },
   });
 
   if (!user) {
     throw new Error("Kullanıcı bulunamadı.");
   }
 
-  const role = user.role as UserRole;
+  const role = roleKeyFromRow(user.role);
 
   if (role === "admin" && user.isSuperAdmin) {
     return { role, isSuperAdmin: true, scopes: ALL_SCOPES };

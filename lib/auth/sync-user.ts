@@ -1,5 +1,6 @@
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
+import { roleConnect, roleKeyFromRow } from "@/lib/db/lookups";
 import type { User, UserRole } from "@/lib/types";
 
 export function prismaUserToApp(row: {
@@ -7,7 +8,7 @@ export function prismaUserToApp(row: {
   supabaseAuthId?: string | null;
   email: string;
   fullName: string;
-  role: UserRole;
+  role: UserRole | { key: string };
   emailVerified: boolean;
   createdAt: Date;
   phone: string | null;
@@ -21,7 +22,7 @@ export function prismaUserToApp(row: {
     supabaseAuthId: row.supabaseAuthId,
     email: row.email,
     fullName: row.fullName,
-    role: row.role,
+    role: roleKeyFromRow(row.role),
     emailVerified: row.emailVerified,
     createdAt: row.createdAt.toISOString(),
     phone: row.phone ?? undefined,
@@ -37,7 +38,7 @@ const USER_LOOKUP_SELECT = {
   supabaseAuthId: true,
   email: true,
   fullName: true,
-  role: true,
+  role: { select: { key: true } },
   emailVerified: true,
   createdAt: true,
   phone: true,
@@ -62,7 +63,7 @@ export async function lookupPrismaUserBySupabase(
   });
 
   if (!row) return null;
-  return prismaUserToApp({ ...row, role: row.role as UserRole });
+  return prismaUserToApp(row);
 }
 
 export type SyncSupabaseUserOptions = {
@@ -83,7 +84,10 @@ export async function syncSupabaseUser(
   }
 
   const existing = await lookupPrismaUserBySupabase(supabaseUser);
-  if (existing && !options.forceUpdate) {
+  const linkedToThisAuth =
+    existing?.supabaseAuthId != null && existing.supabaseAuthId === supabaseUser.id;
+
+  if (existing && !options.forceUpdate && linkedToThisAuth) {
     return existing;
   }
 
@@ -95,6 +99,7 @@ export async function syncSupabaseUser(
     (firstName && lastName ? `${firstName} ${lastName}` : "") ||
     (typeof meta.full_name === "string" && meta.full_name) ||
     (typeof meta.name === "string" && meta.name) ||
+    existing?.fullName ||
     emailNorm.split("@")[0];
 
   const row = existing
@@ -104,19 +109,20 @@ export async function syncSupabaseUser(
           supabaseAuthId: supabaseUser.id,
           email: emailNorm,
           fullName,
-          emailVerified: !!supabaseUser.email_confirmed_at,
+          emailVerified: !!supabaseUser.email_confirmed_at || existing.emailVerified,
           phone: typeof meta.phone === "string" ? meta.phone.trim() || null : undefined,
           profession: typeof meta.profession === "string" ? meta.profession : null,
           experienceYears:
             typeof meta.experience_years === "number" ? meta.experience_years : null,
         },
+        include: { role: { select: { key: true } } },
       })
     : await prisma.user.create({
         data: {
           supabaseAuthId: supabaseUser.id,
           email: emailNorm,
           fullName,
-          role: "user",
+          role: roleConnect("user"),
           isSuperAdmin: false,
           emailVerified: !!supabaseUser.email_confirmed_at,
           phone: typeof meta.phone === "string" ? meta.phone.trim() || null : null,
@@ -124,6 +130,7 @@ export async function syncSupabaseUser(
           experienceYears:
             typeof meta.experience_years === "number" ? meta.experience_years : null,
         },
+        include: { role: { select: { key: true } } },
       });
 
   if (options.syncMetadata) {
@@ -131,5 +138,16 @@ export async function syncSupabaseUser(
     await syncSupabaseAppMetadata(row.id);
   }
 
-  return prismaUserToApp({ ...row, role: row.role as UserRole });
+  return prismaUserToApp(row);
+}
+
+/**
+ * Google OAuth dönüşü: e-posta veya supabaseAuthId ile Prisma'da ara;
+ * yoksa yeni üye (role: user) oluştur, varsa Google hesabını bağla ve girişe izin ver.
+ */
+export async function resolveOAuthAppUser(supabaseUser: SupabaseUser): Promise<User> {
+  return syncSupabaseUser(supabaseUser, {
+    forceUpdate: true,
+    syncMetadata: true,
+  });
 }

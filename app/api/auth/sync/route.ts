@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { syncSupabaseUser } from "@/lib/auth/sync-user";
 import { loadUserScopes } from "@/lib/auth/user-scopes";
 import { refreshSupabaseSession } from "@/lib/auth/refresh-supabase-session";
+import { supabaseAuthProvider } from "@/lib/auth/supabase-provider";
 import { prismaUnavailableMessage } from "@/lib/db/prisma-route";
 import type { SessionUser } from "@/lib/types";
 
@@ -33,6 +34,7 @@ export async function POST() {
       isSuperAdmin,
       scopes,
       authSource: "supabase",
+      authProvider: supabaseAuthProvider(user),
     };
 
     return NextResponse.json({

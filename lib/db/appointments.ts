@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 import type { AuthContext } from "@/lib/auth/guard";
 import { sessionFromParts, sessionToParts } from "@/lib/datetime";
+import {
+  appointmentStatusIdForKey,
+  appointmentStatusKey,
+} from "@/lib/db/lookups";
 import { prisma } from "@/lib/prisma";
 import { generateMeetLink } from "@/lib/utils";
 import {
@@ -8,8 +12,35 @@ import {
   sendEmail,
 } from "@/lib/email/send";
 import type { Appointment } from "@/lib/types";
-import type { Appointment as PrismaAppointment } from "@prisma/client";
 import { isValidPhone, normalizePhone } from "@/lib/validation/phone";
+
+type AppointmentStatusRelation = {
+  key: string;
+  label?: string;
+  colorClass?: string;
+};
+
+type AppointmentRowForApi = {
+  id: string;
+  supervisorId: string;
+  supervisorName: string;
+  userId: number | null;
+  superviseeName: string;
+  superviseeEmail: string;
+  superviseePhone: string;
+  serviceType: string;
+  serviceGroupId?: string | null;
+  serviceGroup?: { name: string } | null;
+  startsAt: Date;
+  endsAt: Date;
+  status: AppointmentStatusRelation | string;
+  meetLink: string | null;
+  paymentApproved: boolean;
+  receiptUrl?: string | null;
+  amount: number;
+  notes?: string | null;
+  createdAt: Date;
+};
 
 const APPOINTMENT_LIST_SELECT = {
   id: true,
@@ -24,16 +55,17 @@ const APPOINTMENT_LIST_SELECT = {
   serviceGroup: { select: { name: true } },
   startsAt: true,
   endsAt: true,
-  status: true,
+  status: { select: { key: true, label: true, colorClass: true } },
   meetLink: true,
   paymentApproved: true,
+  receiptUrl: true,
   amount: true,
   createdAt: true,
 } satisfies Prisma.AppointmentSelect;
 
 type AppointmentListRow = Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_LIST_SELECT }>;
 
-type AppointmentRow = PrismaAppointment | AppointmentListRow;
+type AppointmentRow = AppointmentListRow | AppointmentRowForApi;
 
 export const APPOINTMENT_LIST_DEFAULT_LIMIT = 20;
 export const APPOINTMENT_LIST_MAX_LIMIT = 50;
@@ -68,6 +100,7 @@ export type CreateAppointmentInput = {
   serviceGroupId?: string;
   notes?: string;
   userId?: number;
+  receiptUrl?: string;
 };
 
 export function appointmentRowToApi(row: AppointmentRow): Appointment {
@@ -86,9 +119,14 @@ export function appointmentRowToApi(row: AppointmentRow): Appointment {
     serviceGroupId: "serviceGroupId" in row ? row.serviceGroupId ?? undefined : undefined,
     serviceGroupName: groupName,
     ...parts,
-    status: row.status,
+    status: appointmentStatusKey(row.status),
+    statusLabel:
+      typeof row.status === "object" && row.status !== null && "label" in row.status
+        ? row.status.label
+        : undefined,
     meetLink: row.meetLink ?? undefined,
     paymentApproved: row.paymentApproved,
+    receiptUrl: "receiptUrl" in row && row.receiptUrl ? row.receiptUrl : undefined,
     amount: row.amount,
     notes: "notes" in row && row.notes != null ? row.notes : undefined,
     createdAt: row.createdAt.toISOString(),
@@ -129,6 +167,7 @@ export function validateAppointmentInput(
   const serviceGroupId =
     typeof body.serviceGroupId === "string" ? body.serviceGroupId.trim() : "";
   const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
+  const receiptUrl = typeof body.receiptUrl === "string" ? body.receiptUrl.trim() : undefined;
 
   let userId: number | undefined;
   if (typeof body.userId === "number" && Number.isFinite(body.userId)) {
@@ -169,6 +208,7 @@ export function validateAppointmentInput(
     serviceGroupId: serviceGroupId || undefined,
     notes: notes || undefined,
     userId,
+    receiptUrl: receiptUrl || undefined,
   };
 }
 
@@ -186,6 +226,9 @@ export async function createAppointmentRecord(
     if (!supervisor) {
       throw new AppointmentBookingError("Süpervizör bulunamadı.", "SUPERVISOR_NOT_FOUND");
     }
+
+    const amount = supervisor.sessionFeeOnRequest ? 0 : supervisor.pricePerSession;
+    assertReceiptWhenRequired(amount, input.receiptUrl);
 
     const slot = await tx.availabilitySlot.findFirst({
       where: {
@@ -226,6 +269,8 @@ export async function createAppointmentRecord(
       if (byEmail) userId = byEmail.id;
     }
 
+    const pendingStatusId = await appointmentStatusIdForKey("pending_payment");
+
     return tx.appointment.create({
       data: {
         supervisorId: input.supervisorId,
@@ -238,8 +283,9 @@ export async function createAppointmentRecord(
         startsAt: session.startsAt,
         endsAt: session.endsAt,
         amount: supervisor.sessionFeeOnRequest ? 0 : supervisor.pricePerSession,
+        receiptUrl: input.receiptUrl,
         notes: input.notes,
-        status: "pending_payment",
+        statusId: pendingStatusId,
         meetLink: generateMeetLink(),
       },
       select: APPOINTMENT_LIST_SELECT,
@@ -247,6 +293,15 @@ export async function createAppointmentRecord(
   });
 
   return appointmentRowToApi(row);
+}
+
+function assertReceiptWhenRequired(amount: number, receiptUrl?: string) {
+  if (amount > 0 && !receiptUrl) {
+    throw new AppointmentBookingError(
+      "Ücretli randevular için ödeme dekontu yüklemeniz gerekir.",
+      "INVALID_INPUT"
+    );
+  }
 }
 
 async function createGroupAppointmentRecord(input: CreateAppointmentInput): Promise<Appointment> {
@@ -282,7 +337,7 @@ async function createGroupAppointmentRecord(input: CreateAppointmentInput): Prom
     const enrolledCount = await tx.serviceGroupEnrollment.count({
       where: {
         groupId: group.id,
-        appointment: { status: { not: "cancelled" } },
+        appointment: { status: { key: { not: "cancelled" } } },
       },
     });
 
@@ -294,12 +349,16 @@ async function createGroupAppointmentRecord(input: CreateAppointmentInput): Prom
       where: {
         groupId: group.id,
         superviseeEmail: input.superviseeEmail,
-        appointment: { status: { not: "cancelled" } },
+        appointment: { status: { key: { not: "cancelled" } } },
       },
     });
     if (duplicate) {
       throw new AppointmentBookingError("Bu gruba zaten kayıtlısınız.", "GROUP_UNAVAILABLE");
     }
+
+    const amount =
+      group.service.price || (supervisor.sessionFeeOnRequest ? 0 : supervisor.pricePerSession);
+    assertReceiptWhenRequired(amount, input.receiptUrl);
 
     let userId: number | null = null;
     if (input.userId) {
@@ -320,6 +379,8 @@ async function createGroupAppointmentRecord(input: CreateAppointmentInput): Prom
       group.endsAt ??
       new Date(startsAt.getTime() + (group.service.duration || 50) * 60 * 1000);
 
+    const pendingStatusId = await appointmentStatusIdForKey("pending_payment");
+
     const appointment = await tx.appointment.create({
       data: {
         supervisorId: input.supervisorId,
@@ -332,9 +393,10 @@ async function createGroupAppointmentRecord(input: CreateAppointmentInput): Prom
         serviceGroupId: group.id,
         startsAt,
         endsAt,
-        amount: group.service.price || (supervisor.sessionFeeOnRequest ? 0 : supervisor.pricePerSession),
+        amount,
+        receiptUrl: input.receiptUrl,
         notes: input.notes,
-        status: "pending_payment",
+        statusId: pendingStatusId,
         meetLink: generateMeetLink(),
       },
     });
@@ -360,11 +422,12 @@ async function createGroupAppointmentRecord(input: CreateAppointmentInput): Prom
 
 function appointmentWhereForAuth(auth: AuthContext): Prisma.AppointmentWhereInput {
   if (auth.role === "supervisor") {
-    return { supervisor: { userId: auth.userId } };
+    return {
+      supervisor: { userId: auth.userId },
+      status: { visibleToSupervisor: true },
+    };
   }
-  return {
-    OR: [{ userId: auth.userId }, { superviseeEmail: auth.email.toLowerCase() }],
-  };
+  return { userId: auth.userId };
 }
 
 function clampListLimit(limit?: number): number {
@@ -405,14 +468,15 @@ export async function cancelAppointmentForAuth(
   const accessWhere = appointmentWhereForAuth(auth);
   const existing = await prisma.appointment.findFirst({
     where: { id: appointmentId, ...accessWhere },
-    include: { supervisor: true },
+    include: { supervisor: true, status: { select: { key: true } } },
   });
 
   if (!existing) {
     throw new AppointmentAccessError();
   }
 
-  if (existing.status === "cancelled" || existing.status === "completed") {
+  const currentStatus = appointmentStatusKey(existing.status);
+  if (currentStatus === "cancelled" || currentStatus === "completed") {
     throw new AppointmentBookingError("Bu randevu iptal edilemez.", "INVALID_INPUT");
   }
 
@@ -432,7 +496,8 @@ export async function cancelAppointmentForAuth(
 
     return tx.appointment.update({
       where: { id: appointmentId },
-      data: { status: "cancelled" },
+      data: { statusId: await appointmentStatusIdForKey("cancelled") },
+      select: APPOINTMENT_LIST_SELECT,
     });
   });
 
@@ -465,10 +530,19 @@ export async function listAllAppointmentsForAdmin(
 export async function approveAppointmentPayment(appointmentId: string): Promise<Appointment> {
   const existing = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: { supervisor: { include: { user: true } } },
+    include: {
+      supervisor: { include: { user: true } },
+      status: { select: { key: true } },
+    },
   });
   if (!existing) {
     throw new AppointmentBookingError("Randevu bulunamadı.", "INVALID_INPUT");
+  }
+  if (existing.amount > 0 && !existing.receiptUrl) {
+    throw new AppointmentBookingError(
+      "Ödeme dekontu yüklenmeden onay verilemez.",
+      "INVALID_INPUT"
+    );
   }
 
   const meetLink = existing.meetLink ?? generateMeetLink();
@@ -476,9 +550,10 @@ export async function approveAppointmentPayment(appointmentId: string): Promise<
     where: { id: appointmentId },
     data: {
       paymentApproved: true,
-      status: "confirmed",
+      statusId: await appointmentStatusIdForKey("confirmed"),
       meetLink,
     },
+    select: APPOINTMENT_LIST_SELECT,
   });
 
   const api = appointmentRowToApi(row);
@@ -517,11 +592,15 @@ export async function approveAppointmentPayment(appointmentId: string): Promise<
 }
 
 export async function adminCancelAppointment(appointmentId: string): Promise<Appointment> {
-  const existing = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+  const existing = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: { status: { select: { key: true } } },
+  });
   if (!existing) {
     throw new AppointmentBookingError("Randevu bulunamadı.", "INVALID_INPUT");
   }
-  if (existing.status === "cancelled" || existing.status === "completed") {
+  const currentStatus = appointmentStatusKey(existing.status);
+  if (currentStatus === "cancelled" || currentStatus === "completed") {
     throw new AppointmentBookingError("Bu randevu iptal edilemez.", "INVALID_INPUT");
   }
 
@@ -534,7 +613,8 @@ export async function adminCancelAppointment(appointmentId: string): Promise<App
     }
     return tx.appointment.update({
       where: { id: appointmentId },
-      data: { status: "cancelled" },
+      data: { statusId: await appointmentStatusIdForKey("cancelled") },
+      select: APPOINTMENT_LIST_SELECT,
     });
   });
 
@@ -551,11 +631,13 @@ export async function rescheduleAppointmentForAuth(
   const accessWhere = appointmentWhereForAuth(auth);
   const existing = await prisma.appointment.findFirst({
     where: { id: appointmentId, ...accessWhere },
+    include: { status: { select: { key: true } } },
   });
   if (!existing) {
     throw new AppointmentAccessError();
   }
-  if (existing.status === "cancelled" || existing.status === "completed") {
+  const currentStatus = appointmentStatusKey(existing.status);
+  if (currentStatus === "cancelled" || currentStatus === "completed") {
     throw new AppointmentBookingError("Bu randevu yeniden planlanamaz.", "INVALID_INPUT");
   }
 
@@ -587,8 +669,9 @@ export async function rescheduleAppointmentForAuth(
       data: {
         startsAt: session.startsAt,
         endsAt: session.endsAt,
-        status: "rescheduled",
+        statusId: await appointmentStatusIdForKey("rescheduled"),
       },
+      select: APPOINTMENT_LIST_SELECT,
     });
   });
 

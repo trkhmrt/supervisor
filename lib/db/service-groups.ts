@@ -46,7 +46,7 @@ async function countActiveEnrollments(groupIds: string[]): Promise<Map<string, n
     by: ["groupId"],
     where: {
       groupId: { in: groupIds },
-      appointment: { status: { not: "cancelled" } },
+      appointment: { status: { key: { not: "cancelled" } } },
     },
     _count: { _all: true },
   });
@@ -173,7 +173,7 @@ export async function deleteServiceGroup(id: string): Promise<boolean> {
   const activeCount = await prisma.serviceGroupEnrollment.count({
     where: {
       groupId: id,
-      appointment: { status: { not: "cancelled" } },
+      appointment: { status: { key: { not: "cancelled" } } },
     },
   });
   if (activeCount > 0) {

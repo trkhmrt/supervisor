@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Layers, Plus, Loader2, Trash2, ExternalLink } from "lucide-react";
+import { Layers, Plus, Loader2, Trash2, ExternalLink, Pencil } from "lucide-react";
+import { ServiceFormFields } from "@/components/admin/ServiceFormFields";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 import {
   canCreateServices,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/auth/access";
 import { useSessionUser } from "@/hooks/useSessionUser";
 import { panelFetch, panelErrorMessage } from "@/lib/panel-client";
-import { slugify } from "@/lib/utils";
+import { EMPTY_SERVICE_FORM, parseServiceFormPayload, type ServiceFormData } from "@/lib/services/form";
 import type { Service } from "@/lib/types";
 
 export default function PanelServicesPage() {
@@ -27,17 +28,7 @@ export default function PanelServicesPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const [form, setForm] = useState({
-    name: "",
-    slug: "",
-    shortDescription: "",
-    description: "",
-    features: "50 dakikalık online seans\nVaka odaklı çalışma",
-    icon: "user",
-    duration: "50",
-    isGroupService: false,
-  });
+  const [form, setForm] = useState<ServiceFormData>(EMPTY_SERVICE_FORM);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -103,39 +94,13 @@ export default function PanelServicesPage() {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    const name = form.name.trim();
-    const slug = (form.slug.trim() ? slugify(form.slug) : slugify(name)) || "hizmet";
-    const features = form.features
-      .split(/\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
     try {
       const r = await panelFetch(user, "/api/panel/services", {
         method: "POST",
-        body: JSON.stringify({
-          name,
-          slug,
-          shortDescription: form.shortDescription.trim(),
-          description: form.description.trim(),
-          features,
-          icon: form.icon,
-          price: 0,
-          duration: Number(form.duration) || 50,
-          active: true,
-          isGroupService: form.isGroupService,
-        }),
+        body: JSON.stringify(parseServiceFormPayload(form)),
       });
       if (!r.ok) throw new Error(await panelErrorMessage(r, "Kayıt başarısız"));
-      setForm({
-        name: "",
-        slug: "",
-        shortDescription: "",
-        description: "",
-        features: "50 dakikalık online seans\nVaka odaklı çalışma",
-        icon: "user",
-        duration: "50",
-        isGroupService: false,
-      });
+      setForm(EMPTY_SERVICE_FORM);
       setShowForm(false);
       await reload();
     } catch (err) {
@@ -151,13 +116,20 @@ export default function PanelServicesPage() {
         <div>
           <h1 className="h2-premium text-3xl">Hizmet Yönetimi</h1>
           <p className="mt-2 text-sm text-clinical-muted">
-            Hizmetler veritabanından listelenir; ekleme, aktif/pasif ve silme buradan yapılır.
+            Hizmetleri ekleyin, düzenleyin, aktif/pasif yapın veya silin.
           </p>
         </div>
         <div className="flex items-center gap-3">
           {loading && <Loader2 className="h-5 w-5 animate-spin text-navy-500" />}
           {canCreate && (
-            <button type="button" onClick={() => setShowForm((v) => !v)} className="btn-navy py-2 px-6 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setForm(EMPTY_SERVICE_FORM);
+                setShowForm((v) => !v);
+              }}
+              className="btn-navy py-2 px-6 text-xs"
+            >
               <Plus className="h-4 w-4" /> Yeni Hizmet
             </button>
           )}
@@ -182,77 +154,16 @@ export default function PanelServicesPage() {
             <h2 className="text-sm font-bold uppercase tracking-widest text-navy-900">Yeni hizmet</h2>
           </div>
           <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-2">
-            <input
-              required
-              placeholder="Hizmet adı"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="rounded-premium border border-clinical-border px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="Slug (boşsa addan üretilir)"
-              value={form.slug}
-              onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-              className="rounded-premium border border-clinical-border px-3 py-2 text-sm"
-            />
-            <input
-              required
-              placeholder="Kısa açıklama"
-              value={form.shortDescription}
-              onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value }))}
-              className="md:col-span-2 rounded-premium border border-clinical-border px-3 py-2 text-sm"
-            />
-            <textarea
-              required
-              placeholder="Uzun açıklama"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="md:col-span-2 h-28 resize-none rounded-premium border border-clinical-border px-3 py-2 text-sm"
-            />
-            <textarea
-              required
-              placeholder="Özellikler (her satır bir madde)"
-              value={form.features}
-              onChange={(e) => setForm((f) => ({ ...f, features: e.target.value }))}
-              className="md:col-span-2 h-24 resize-none rounded-premium border border-clinical-border px-3 py-2 text-sm"
-            />
-            <select
-              value={form.icon}
-              onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
-              className="rounded-premium border border-clinical-border px-3 py-2 text-sm"
-            >
-              <option value="user">Bireysel (user)</option>
-              <option value="users">Grup (users)</option>
-              <option value="handshake">Akran (handshake)</option>
-              <option value="stage">Simülasyon (stage)</option>
-            </select>
-            <input
-              type="number"
-              min={1}
-              placeholder="Süre (dakika)"
-              value={form.duration}
-              onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-              className="rounded-premium border border-clinical-border px-3 py-2 text-sm"
-            />
-            <label className="md:col-span-2 flex items-center gap-3 rounded-premium border border-clinical-border px-4 py-3 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.isGroupService}
-                onChange={(e) => setForm((f) => ({ ...f, isGroupService: e.target.checked }))}
-                className="h-4 w-4"
-              />
-              <span>
-                <span className="font-semibold text-navy-900">Grup hizmeti</span>
-                <span className="block text-xs text-clinical-muted mt-0.5">
-                  Süpervizörler bu hizmet için grup/kohort tanımlayabilir; danışanlar gruba başvurur.
-                </span>
-              </span>
-            </label>
+            <ServiceFormFields form={form} setForm={setForm} />
             <div className="md:col-span-2 flex gap-2">
               <button type="submit" disabled={saving} className="btn-navy py-2 px-6 text-xs">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Veritabanına Kaydet"}
               </button>
-              <button type="button" onClick={() => setShowForm(false)} className="btn-outline-navy py-2 px-6 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="btn-outline-navy py-2 px-6 text-xs"
+              >
                 Vazgeç
               </button>
             </div>
@@ -305,10 +216,16 @@ export default function PanelServicesPage() {
 
             <div className="flex items-center justify-between border-t border-clinical-border pt-6">
               <span className="text-xs font-bold uppercase tracking-widest text-clinical-muted">
-                {s.duration} dk
+                {s.duration} dk · {s.price > 0 ? `${s.price} ₺` : "Ücretsiz"}
               </span>
               {canUpdate && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Link
+                    href={`/dashboard/hizmetler/${s.id}/duzenle`}
+                    className="btn-navy inline-flex items-center gap-1.5 py-2 px-4 text-[10px] font-bold uppercase tracking-widest"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Düzenle
+                  </Link>
                   <button
                     type="button"
                     onClick={() => toggleGroupService(s)}

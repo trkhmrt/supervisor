@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { UserPlus, Shield, ArrowRight } from "lucide-react";
+import { UserPlus, Shield, ArrowRight, BarChart3, Activity } from "lucide-react";
 import { hasUserScope } from "@/lib/auth/access";
 import { useCurrentUser } from "@/lib/store";
 import type { SessionUser } from "@/lib/types";
@@ -31,6 +31,42 @@ export function AdminOverviewPage() {
               <div>
                 <h2 className="font-bold text-navy-900">Süpervizörler</h2>
                 <p className="text-sm text-clinical-muted mt-1">Oluştur, listele ve yönet</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-clinical-muted group-hover:text-navy-900" />
+          </Link>
+        )}
+
+        {hasUserScope(me, "appointments:list") && (
+          <Link
+            href="/dashboard/raporlar"
+            className="card-premium flex items-center justify-between group hover:border-navy-300 transition"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-premium bg-navy-50 flex items-center justify-center text-navy-900">
+                <BarChart3 className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="font-bold text-navy-900">Raporlar</h2>
+                <p className="text-sm text-clinical-muted mt-1">Gelir, randevu ve eğitim özeti</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-clinical-muted group-hover:text-navy-900" />
+          </Link>
+        )}
+
+        {hasUserScope(me, "settings:read") && (
+          <Link
+            href="/dashboard/site-analizi"
+            className="card-premium flex items-center justify-between group hover:border-navy-300 transition"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-premium bg-navy-50 flex items-center justify-center text-navy-900">
+                <Activity className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="font-bold text-navy-900">Site Analizi</h2>
+                <p className="text-sm text-clinical-muted mt-1">Ziyaret, IP ve cihaz istatistikleri</p>
               </div>
             </div>
             <ArrowRight className="h-5 w-5 text-clinical-muted group-hover:text-navy-900" />

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { ensurePermissionSeeds, setUserScopes, loadUserScopes } from "@/lib/auth/user-scopes";
 import { createSupervisorRecord } from "@/lib/db/supervisor-create";
+import { roleConnect, roleKeyFromRow } from "@/lib/db/lookups";
 import type { Scope } from "@/lib/auth/permissions";
 import type { UserRole } from "@/lib/types";
 import { signAdminToken } from "@/lib/auth/admin-token";
@@ -9,9 +10,10 @@ import { signAdminToken } from "@/lib/auth/admin-token";
 export async function authenticateAdmin(email: string, password: string) {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
+    include: { role: { select: { key: true } } },
   });
 
-  if (!user || user.role !== "admin" || !user.password) {
+  if (!user || roleKeyFromRow(user.role) !== "admin" || !user.password) {
     return { ok: false as const, error: "E-posta veya şifre hatalı." };
   }
 
@@ -22,10 +24,11 @@ export async function authenticateAdmin(email: string, password: string) {
   }
 
   const { scopes, isSuperAdmin } = await loadUserScopes(user.id);
+  const role = roleKeyFromRow(user.role);
   const token = await signAdminToken({
     sub: String(user.id),
     email: user.email,
-    role: user.role as UserRole,
+    role,
     isSuperAdmin,
     scopes,
   });
@@ -37,7 +40,7 @@ export async function authenticateAdmin(email: string, password: string) {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
-      role: user.role as UserRole,
+      role,
       isSuperAdmin,
       scopes,
     },
@@ -59,7 +62,7 @@ export async function createAdminAccount(data: {
       email: data.email.toLowerCase(),
       password: passwordHash,
       fullName: data.fullName,
-      role: "admin",
+      role: roleConnect("admin"),
       isSuperAdmin: data.isSuperAdmin ?? false,
       emailVerified: true,
     },
@@ -92,7 +95,7 @@ export async function createSupervisorWithUser(
       email: account.email.toLowerCase(),
       password: passwordHash,
       fullName,
-      role: "supervisor",
+      role: roleConnect("supervisor"),
       isSuperAdmin: false,
       emailVerified: true,
       license: supResult.supervisor.license,

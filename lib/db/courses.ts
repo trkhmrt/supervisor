@@ -24,6 +24,7 @@ function courseRowToApi(
     title: string;
     slug: string;
     description: string;
+    learningOutcomes: string[];
     cover: string;
     active: boolean;
     acceptsApplications: boolean;
@@ -41,6 +42,7 @@ function courseRowToApi(
     title: row.title,
     slug: row.slug,
     description: row.description,
+    learningOutcomes: row.learningOutcomes,
     cover: courseCoverUrl(row.cover),
     active: row.active,
     acceptsApplications: row.acceptsApplications,
@@ -278,6 +280,7 @@ export type CreateCourseInput = {
   title: string;
   slug?: string;
   description: string;
+  learningOutcomes?: string[];
   cover?: string;
   active?: boolean;
   acceptsApplications?: boolean;
@@ -303,6 +306,7 @@ export async function createCourseForSupervisor(
       title,
       slug: finalSlug,
       description: input.description.trim(),
+      learningOutcomes: input.learningOutcomes ?? [],
       cover: courseCoverUrl(input.cover),
       active: input.active ?? true,
       acceptsApplications: input.acceptsApplications ?? true,
@@ -330,6 +334,9 @@ export async function updateCourseForSupervisor(
     data: {
       ...(data.title != null ? { title: data.title.trim() } : {}),
       ...(data.description != null ? { description: data.description.trim() } : {}),
+      ...(data.learningOutcomes !== undefined
+        ? { learningOutcomes: { set: data.learningOutcomes } }
+        : {}),
       ...(data.cover != null ? { cover: courseCoverUrl(data.cover) } : {}),
       ...(data.active != null ? { active: data.active } : {}),
       ...(data.acceptsApplications != null

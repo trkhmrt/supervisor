@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CreditCard,
@@ -18,6 +19,8 @@ import type { Service, Supervisor } from "@/lib/types";
 import { MonthCalendarGrid } from "@/components/calendar/MonthCalendarGrid";
 import { bookingDayStatusFromSlots } from "@/lib/calendar-booking";
 import { formatPrice } from "@/lib/utils";
+import { ReceiptUploadField } from "@/components/appointments/ReceiptUploadField";
+import { RequireUserLogin } from "@/components/appointments/RequireUserLogin";
 
 export function BookingPanel({
   supervisorId,
@@ -31,6 +34,7 @@ export function BookingPanel({
   service?: Service | null;
 }) {
   const user = useCurrentUser();
+  const pathname = usePathname();
 
   const [supervisor, setSupervisor] = useState<Supervisor | null>(supervisorOverride ?? null);
   const [services, setServices] = useState<Service[]>([]);
@@ -82,6 +86,7 @@ export function BookingPanel({
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getUTCFullYear());
   const [calMonth, setCalMonth] = useState(now.getUTCMonth() + 1);
@@ -105,6 +110,9 @@ export function BookingPanel({
 
   const hasBookableSlots = supervisor?.availability.some((s) => !s.isBooked) ?? false;
 
+  const requiresPayment =
+    !!supervisor && !supervisor.sessionFeeOnRequest && supervisor.pricePerSession > 0;
+
   useEffect(() => {
     const first = Object.keys(groupedByDate).sort()[0];
     if (first) setSelectedDate((prev) => prev ?? first);
@@ -122,6 +130,7 @@ export function BookingPanel({
   const noonSlots = daySlots.filter((slot) => Number(slot.startTime.split(":")[0]) >= 12);
 
   return (
+    <RequireUserLogin loginNext={pathname}>
     <div className="card-premium card-flat-hover mx-auto w-full max-w-xl overflow-hidden bg-white p-6 shadow-none sm:p-8">
       <AnimatePresence mode="wait">
         {step === "select" && (
@@ -300,10 +309,9 @@ export function BookingPanel({
                 <input
                   type="email"
                   required
+                  readOnly
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ornek@email.com"
-                  className="w-full rounded-premium border border-clinical-border bg-white px-4 py-3 text-sm focus:border-navy-400 focus:outline-none"
+                  className="w-full rounded-premium border border-clinical-border bg-clinical-light px-4 py-3 text-sm text-clinical-muted"
                 />
               </div>
               <div>
@@ -329,6 +337,14 @@ export function BookingPanel({
                   className="h-24 w-full resize-none rounded-premium border border-clinical-border bg-white p-4 text-sm focus:border-navy-400 focus:outline-none"
                 />
               </div>
+              {requiresPayment && (
+                <ReceiptUploadField
+                  value={receiptUrl}
+                  onChange={setReceiptUrl}
+                  onError={setSubmitError}
+                  disabled={submitting}
+                />
+              )}
               {submitError && <p className="text-sm text-red-600">{submitError}</p>}
               <button
                 type="button"
@@ -339,11 +355,16 @@ export function BookingPanel({
                     setSubmitError("Geçerli bir e-posta girin.");
                     return;
                   }
+                  if (requiresPayment && !receiptUrl) {
+                    setSubmitError("Ödeme dekontu yüklemeniz gerekir.");
+                    return;
+                  }
                   setSubmitting(true);
                   setSubmitError(null);
                   try {
                     const res = await fetch("/api/appointments", {
                       method: "POST",
+                      credentials: "include",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         supervisorId: supervisor.id,
@@ -355,6 +376,7 @@ export function BookingPanel({
                         startTime: selectedSlot!.start,
                         endTime: selectedSlot!.end,
                         notes: notes.trim() || undefined,
+                        receiptUrl: receiptUrl ?? undefined,
                       }),
                     });
                     const data = await res.json();
@@ -398,10 +420,13 @@ export function BookingPanel({
             <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600">
               <Check className="h-10 w-10" />
             </div>
-            <h3 className="h2-premium mb-4">Randevunuz Onaylandi</h3>
+            <h3 className="h2-premium mb-4">Randevunuz Kaydedildi</h3>
             <p className="mx-auto mb-10 max-w-sm text-clinical-muted">
-              Talebiniz basariyla kaydedildi. Randevu detaylari ve Google Meet linki e-posta
-              adresinize gonderilmistir.
+              Randevunuz <strong className="text-navy-900">Ödeme Onayı Bekliyor</strong> durumunda
+              kaydedildi.
+              {requiresPayment
+                ? " Dekontunuz incelendikten sonra randevu aktif olacak ve Google Meet linki e-posta adresinize gönderilecektir."
+                : " Onay sonrası Google Meet linki e-posta adresinize gönderilecektir."}
             </p>
 
             <div className="mb-10 rounded-premium border border-clinical-border bg-clinical-light p-6 text-left">
@@ -423,5 +448,6 @@ export function BookingPanel({
         )}
       </AnimatePresence>
     </div>
+    </RequireUserLogin>
   );
 }

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Eye, Loader2, Plus, Trash2 } from "lucide-react";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
+import { LearningOutcomesField } from "@/components/admin/LearningOutcomesField";
 import { formatDate } from "@/lib/utils";
+import { DEFAULT_LEARNING_OUTCOMES_TEXT } from "@/lib/courses/form";
 import type { AdminCourse, Supervisor } from "@/lib/types";
 
 const inputClass =
@@ -24,6 +26,7 @@ function AdminCourseCreateForm({
     supervisorId: "",
     title: "",
     description: "",
+    learningOutcomes: DEFAULT_LEARNING_OUTCOMES_TEXT,
     cover: "",
     maxParticipants: "",
     startsAt: "",
@@ -45,6 +48,7 @@ function AdminCourseCreateForm({
           supervisorId: form.supervisorId,
           title: form.title,
           description: form.description,
+          learningOutcomes: form.learningOutcomes,
           cover: form.cover.trim() || undefined,
           maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : null,
           startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null,
@@ -59,6 +63,7 @@ function AdminCourseCreateForm({
         supervisorId: "",
         title: "",
         description: "",
+        learningOutcomes: DEFAULT_LEARNING_OUTCOMES_TEXT,
         cover: "",
         maxParticipants: "",
         startsAt: "",
@@ -112,6 +117,11 @@ function AdminCourseCreateForm({
         rows={4}
         value={form.description}
         onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+        className={inputClass}
+      />
+      <LearningOutcomesField
+        value={form.learningOutcomes}
+        onChange={(learningOutcomes) => setForm((f) => ({ ...f, learningOutcomes }))}
         className={inputClass}
       />
       <input

@@ -6,6 +6,7 @@
 import { PrismaClient } from "@prisma/client";
 import { createSupabaseAdminClient } from "../lib/supabase/admin";
 import { syncSupabaseAppMetadata } from "../lib/auth/sync-supabase-metadata";
+import { roleConnect, seedRoleAndStatusLookups } from "../lib/db/lookups";
 
 const prisma = new PrismaClient();
 
@@ -56,6 +57,8 @@ async function resolveSupabaseUserId(
 }
 
 async function main() {
+  await seedRoleAndStatusLookups(prisma);
+
   const email = (process.env.SEED_SUPERVISOR_EMAIL ?? "abdullatif@supervizyon.com").toLowerCase();
   const password = process.env.SEED_SUPERVISOR_PASSWORD ?? "Supervisor123!";
   const fullName = process.env.SEED_SUPERVISOR_NAME ?? "Abdullatif Ramazan Çelik";
@@ -69,7 +72,7 @@ async function main() {
       email,
       supabaseAuthId,
       fullName,
-      role: "supervisor",
+      role: roleConnect("supervisor"),
       title: "Psikolog",
       license: "TPD No: 12345",
       emailVerified: true,
@@ -78,7 +81,7 @@ async function main() {
     update: {
       supabaseAuthId,
       fullName,
-      role: "supervisor",
+      role: roleConnect("supervisor"),
       emailVerified: true,
     },
   });

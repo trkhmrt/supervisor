@@ -19,6 +19,8 @@ export type DashboardNavId =
   | "messages"
   | "members"
   | "admins"
+  | "reports"
+  | "site-analytics"
   | "profile";
 
 export type DashboardNavItem = {
@@ -75,6 +77,18 @@ export const DASHBOARD_NAV_ADMIN: DashboardNavItem[] = [
     href: `${DASHBOARD_BASE}/randevular`,
     label: "Randevular",
     scope: SCOPES.APPOINTMENTS_LIST,
+  },
+  {
+    id: "reports",
+    href: `${DASHBOARD_BASE}/raporlar`,
+    label: "Raporlar",
+    scope: SCOPES.APPOINTMENTS_LIST,
+  },
+  {
+    id: "site-analytics",
+    href: `${DASHBOARD_BASE}/site-analizi`,
+    label: "Site Analizi",
+    scope: SCOPES.SETTINGS_READ,
   },
   {
     id: "ads",

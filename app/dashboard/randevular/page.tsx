@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, Clock, Loader2, Video } from "lucide-react";
+import { Calendar, Clock, Loader2, Video, CalendarPlus } from "lucide-react";
 import { PhoneWhatsAppLink } from "@/components/site/PhoneWhatsAppLink";
 import { useSessionUser } from "@/hooks/useSessionUser";
 import { usePanelAppointments } from "@/hooks/usePanelAppointments";
 import type { Appointment, Service } from "@/lib/types";
-import { formatPrice, formatDate, serviceLabelById } from "@/lib/utils";
+import { formatPrice, formatDate, formatDateTimeCompact, serviceLabelById } from "@/lib/utils";
+import {
+  APPOINTMENT_STATUS_COLORS,
+  APPOINTMENT_STATUS_LABELS,
+} from "@/lib/appointments/status-labels";
 import { useRemoteServices } from "@/hooks/useRemoteServices";
 import { AdminAppointmentsPage } from "./AdminAppointmentsPage";
 
@@ -134,30 +138,17 @@ function AppointmentRow({
   servicesForLabels: Service[];
   onCancel: (id: string) => Promise<boolean>;
 }) {
-  const statusLabel: Record<string, string> = {
-    pending_payment: "Ödeme Bekliyor",
-    confirmed: "Onaylandı",
-    completed: "Tamamlandı",
-    cancelled: "İptal Edildi",
-    rescheduled: "Yeniden Planlandı",
-  };
-
-  const statusColor: Record<string, string> = {
-    pending_payment: "bg-amber-50 text-amber-700 border-amber-100",
-    confirmed: "bg-green-50 text-green-700 border-green-100",
-    completed: "bg-navy-50 text-navy-700 border-navy-100",
-    cancelled: "border-black/15 bg-[#f1f0f0] text-black",
-    rescheduled: "bg-blue-50 text-blue-700 border-blue-100",
-  };
+  const statusLabel = APPOINTMENT_STATUS_LABELS;
+  const statusColor = APPOINTMENT_STATUS_COLORS;
 
   return (
     <div className="card-premium flex flex-col justify-between gap-6 md:flex-row md:items-center hover:border-navy-900">
       <div className="flex-1">
         <div className="mb-3 flex items-center gap-3">
           <span
-            className={`rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${statusColor[appointment.status]}`}
+            className={`rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${statusColor[appointment.status] ?? "bg-clinical-light text-clinical-muted"}`}
           >
-            {statusLabel[appointment.status]}
+            {statusLabel[appointment.status] ?? appointment.status}
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest text-clinical-muted">
             {serviceLabelById(servicesForLabels, appointment.serviceType)}
@@ -171,7 +162,18 @@ function AppointmentRow({
             <PhoneWhatsAppLink phone={appointment.superviseePhone} compact />
           </div>
         )}
+        {appointment.status === "pending_payment" && appointment.amount > 0 && userRole === "user" && (
+          <p className="mb-3 text-xs text-amber-700">
+            {appointment.receiptUrl
+              ? "Dekontunuz inceleniyor. Onay sonrası randevunuz aktif olacak ve Meet linki gönderilecek."
+              : "Ödeme dekontu bekleniyor."}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-6 text-xs font-bold uppercase tracking-widest text-clinical-muted">
+          <span className="flex items-center gap-2">
+            <CalendarPlus className="h-4 w-4 text-navy-400" />
+            Oluşturuldu: {formatDateTimeCompact(appointment.createdAt)}
+          </span>
           <span className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-navy-400" />
             {formatDate(appointment.date)}

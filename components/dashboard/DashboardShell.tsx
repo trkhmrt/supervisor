@@ -26,6 +26,8 @@ import {
   FileText,
   MessageSquare,
   Users,
+  BarChart3,
+  Activity,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { ProfileCompletionBanner } from "@/components/auth/ProfileCompletionBanner";
@@ -42,6 +44,8 @@ const NAV_ICONS: Record<DashboardNavId, LucideIcon> = {
   supervisors: UserPlus,
   services: Layers,
   appointments: Calendar,
+  reports: BarChart3,
+  "site-analytics": Activity,
   courses: BookOpen,
   availability: Calendar,
   enrollments: ClipboardList,

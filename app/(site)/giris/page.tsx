@@ -96,7 +96,13 @@ function LoginForm() {
               </p>
             </Reveal>
 
-            <GoogleAuthButton />
+            <GoogleAuthButton
+              next={
+                nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
+                  ? nextPath
+                  : "/dashboard"
+              }
+            />
 
             <div className="my-8 flex items-center gap-4">
               <div className="h-px flex-1 bg-clinical-border" />

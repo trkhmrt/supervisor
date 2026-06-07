@@ -5,10 +5,13 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { PERMISSION_SEED } from "../lib/auth/permissions";
+import { roleConnect, seedRoleAndStatusLookups } from "../lib/db/lookups";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  await seedRoleAndStatusLookups(prisma);
+
   for (const p of PERMISSION_SEED) {
     await prisma.permission.upsert({
       where: { key: p.key },
@@ -27,13 +30,13 @@ async function main() {
       email,
       password: hash,
       fullName: "Süper Admin",
-      role: "admin",
+      role: roleConnect("admin"),
       isSuperAdmin: true,
       emailVerified: true,
     },
     update: {
       password: hash,
-      role: "admin",
+      role: roleConnect("admin"),
       isSuperAdmin: true,
     },
   });

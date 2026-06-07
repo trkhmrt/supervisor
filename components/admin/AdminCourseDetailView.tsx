@@ -12,6 +12,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { learningOutcomesToText, parseLearningOutlinesText } from "@/lib/courses/form";
+import { LearningOutcomesField } from "@/components/admin/LearningOutcomesField";
 import type { AdminCourseDetail, CourseEnrollment, CourseEnrollmentStatus } from "@/lib/types";
 
 const inputClass =
@@ -42,6 +44,7 @@ function fromDatetimeLocal(value: string): string | null {
 type FormState = {
   title: string;
   description: string;
+  learningOutcomes: string;
   cover: string;
   maxParticipants: string;
   startsAt: string;
@@ -54,6 +57,7 @@ function courseToForm(course: AdminCourseDetail): FormState {
   return {
     title: course.title,
     description: course.description,
+    learningOutcomes: learningOutcomesToText(course.learningOutcomes ?? []),
     cover: course.cover,
     maxParticipants: course.maxParticipants != null ? String(course.maxParticipants) : "",
     startsAt: toDatetimeLocal(course.startsAt),
@@ -110,6 +114,7 @@ export function AdminCourseDetailView({ courseId }: { courseId: string }) {
         body: JSON.stringify({
           title: form.title.trim(),
           description: form.description.trim(),
+          learningOutcomes: parseLearningOutlinesText(form.learningOutcomes),
           cover: form.cover.trim(),
           maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : null,
           startsAt: fromDatetimeLocal(form.startsAt),
@@ -282,6 +287,12 @@ export function AdminCourseDetailView({ courseId }: { courseId: string }) {
               className={inputClass}
             />
           </div>
+
+          <LearningOutcomesField
+            value={form.learningOutcomes}
+            onChange={(learningOutcomes) => setForm((f) => f && { ...f, learningOutcomes })}
+            className={inputClass}
+          />
 
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-clinical-muted">

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { syncSupabaseUser } from "@/lib/auth/sync-user";
+import { resolveOAuthAppUser } from "@/lib/auth/sync-user";
 import { refreshSupabaseSession } from "@/lib/auth/refresh-supabase-session";
 import { redirectPathForRole } from "@/lib/auth/redirect";
 import { getRequestOrigin } from "@/lib/supabase/env";
@@ -9,7 +9,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const nextParam = searchParams.get("next");
-  /** OAuth dönüşünde mevcut host (prod domain); env'deki localhost kullanılmaz */
   const origin = getRequestOrigin(request);
 
   if (code) {
@@ -20,11 +19,11 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (user) {
-        const appUser = await syncSupabaseUser(user);
+      if (user?.email) {
+        const appUser = await resolveOAuthAppUser(user);
         await refreshSupabaseSession();
         const target =
-          nextParam && nextParam.startsWith("/")
+          nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
             ? nextParam
             : redirectPathForRole(appUser.role);
         return NextResponse.redirect(`${origin}${target}`);

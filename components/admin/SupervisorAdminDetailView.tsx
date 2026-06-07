@@ -7,6 +7,7 @@ import { ArrowLeft, ExternalLink, Loader2, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import type { Service, SupervisorAdminDetail } from "@/lib/types";
 import { ServiceGroupsAdminSection } from "@/components/admin/ServiceGroupsAdminSection";
+import { SupervisorPhotoUploadField } from "@/components/admin/SupervisorPhotoUploadField";
 
 type Props = {
   id: string;
@@ -126,12 +127,13 @@ export function SupervisorAdminDetailView({ id, listHref, coursesHref }: Props) 
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="card-premium lg:col-span-1 text-center">
-          <img
-            src={data.photo}
-            alt={data.fullName}
-            className="mx-auto mb-4 h-28 w-28 rounded-full object-cover border border-clinical-border"
+          <SupervisorPhotoUploadField
+            variant="avatar"
+            supervisorId={data.id}
+            value={data.photo}
+            onChange={(url) => setData((prev) => (prev ? { ...prev, photo: url } : prev))}
           />
-          <h1 className="text-xl font-bold text-navy-900">{data.fullName}</h1>
+          <h1 className="mt-4 text-xl font-bold text-navy-900">{data.fullName}</h1>
           <p className="text-sm text-clinical-muted">{data.title}</p>
           <p className="mt-3 font-bold text-navy-900">
             {data.sessionFeeOnRequest
