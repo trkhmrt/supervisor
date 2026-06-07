@@ -12,6 +12,11 @@ import {
   THERAPY_APPROACHES,
 } from "@/lib/constants/supervisor-options";
 import type { Service, Supervisor } from "@/lib/types";
+import {
+  resolveServiceFilterId,
+  serviceFilterParamValue,
+  supervisorProfileHref,
+} from "@/lib/services/supervisor-filter";
 
 const ALL = "all";
 
@@ -27,9 +32,13 @@ export function SupervisorsPageClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const initialHizmet = searchParams.get("hizmet");
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [expertise, setExpertise] = useState<string>(searchParams.get("alan") ?? ALL);
-  const [serviceId, setServiceId] = useState<string>(searchParams.get("hizmet") ?? ALL);
+  const [serviceId, setServiceId] = useState<string>(() => {
+    const resolved = resolveServiceFilterId(initialHizmet, services);
+    return resolved ?? ALL;
+  });
   const [approach, setApproach] = useState<string>(searchParams.get("yaklasim") ?? ALL);
 
   const syncUrl = useCallback(
@@ -41,20 +50,21 @@ export function SupervisorsPageClient({
       const y = next.yaklasim ?? approach;
       if (q) params.set("q", q);
       if (a && a !== ALL) params.set("alan", a);
-      if (h && h !== ALL) params.set("hizmet", h);
+      if (h && h !== ALL) params.set("hizmet", serviceFilterParamValue(h, services));
       if (y && y !== ALL) params.set("yaklasim", y);
       const qs = params.toString();
       router.replace(qs ? `/supervizorler?${qs}` : "/supervizorler", { scroll: false });
     },
-    [approach, expertise, query, router, serviceId]
+    [approach, expertise, query, router, serviceId, services]
   );
 
   useEffect(() => {
     setQuery(searchParams.get("q") ?? "");
     setExpertise(searchParams.get("alan") ?? ALL);
-    setServiceId(searchParams.get("hizmet") ?? ALL);
+    const resolved = resolveServiceFilterId(searchParams.get("hizmet"), services);
+    setServiceId(resolved ?? ALL);
     setApproach(searchParams.get("yaklasim") ?? ALL);
-  }, [searchParams]);
+  }, [searchParams, services]);
 
   const expertiseOptions = useMemo(() => {
     const used = new Set<string>();
@@ -74,6 +84,8 @@ export function SupervisorsPageClient({
     return services.filter((s) => used.has(s.id));
   }, [services, supervisors]);
 
+  const activeService = serviceId !== ALL ? services.find((s) => s.id === serviceId) : null;
+
   const filtered = supervisors.filter((s) => {
     const matchesQuery =
       query === "" ||
@@ -81,7 +93,13 @@ export function SupervisorsPageClient({
       s.expertise.some((e) => e.toLowerCase().includes(query.toLowerCase()));
     const matchesExpertise = expertise === ALL || s.expertise.includes(expertise);
     const matchesService =
-      serviceId === ALL || (s.services?.some((svc) => svc.id === serviceId) ?? false);
+      serviceId === ALL ||
+      (s.services?.some(
+        (svc) =>
+          svc.id === serviceId ||
+          (activeService != null && (svc.slug === activeService.slug || svc.id === activeService.id))
+      ) ??
+        false);
     const matchesApproach = approach === ALL || s.approaches.includes(approach);
     return matchesQuery && matchesExpertise && matchesService && matchesApproach;
   });
@@ -103,9 +121,25 @@ export function SupervisorsPageClient({
           </Reveal>
           <Reveal delay={0.2}>
             <p className="text-navy-200 text-lg max-w-2xl leading-relaxed">
-              Uzmanlık alanı, sağladığı hizmet ve terapi yaklaşımına göre filtreleyin.
+              {activeService
+                ? `${activeService.name} hizmeti veren süpervizörler listeleniyor.`
+                : "Uzmanlık alanı, sağladığı hizmet ve terapi yaklaşımına göre filtreleyin."}
             </p>
           </Reveal>
+          {activeService && (
+            <Reveal delay={0.25}>
+              <button
+                type="button"
+                onClick={() => {
+                  setServiceId(ALL);
+                  syncUrl({ hizmet: ALL });
+                }}
+                className="mt-4 text-xs font-bold uppercase tracking-widest text-navy-300 hover:text-white transition-colors"
+              >
+                Hizmet filtresini kaldır
+              </button>
+            </Reveal>
+          )}
 
           <Reveal delay={0.3} className="mt-12">
             <div className="flex flex-col gap-4 max-w-5xl">
@@ -194,7 +228,7 @@ export function SupervisorsPageClient({
                 {filtered.map((s) => (
                   <StaggerItem key={s.id}>
                     <Link
-                      href={`/supervizorler/${s.id}`}
+                      href={supervisorProfileHref(s.id, activeService)}
                       className="card-premium p-0 overflow-hidden group h-full flex flex-col block cursor-pointer transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-900 focus-visible:ring-offset-2"
                     >
                       <div className="relative aspect-square">

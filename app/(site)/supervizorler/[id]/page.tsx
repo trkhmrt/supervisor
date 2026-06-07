@@ -5,14 +5,19 @@ import {
   safeGetSupervisorById,
   safeGetSupervisors,
 } from "@/lib/db/queries";
+import { pickBookingServiceForSupervisor } from "@/lib/services/supervisor-filter";
 import { SupervisorProfileClient } from "./SupervisorProfileClient";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ hizmet?: string }>;
+};
 
-export default async function SupervisorProfilePage({ params }: Props) {
+export default async function SupervisorProfilePage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { hizmet } = await searchParams;
   const [{ data: supervisor }, { data: services }, { data: supervisors }, reviews] =
     await Promise.all([
       safeGetSupervisorById(id),
@@ -23,8 +28,11 @@ export default async function SupervisorProfilePage({ params }: Props) {
 
   if (!supervisor) notFound();
 
-  const bookingService =
-    services.find((s) => s.slug === "bireysel-supervizyon") ?? services[0] ?? null;
+  const bookingService = pickBookingServiceForSupervisor(
+    hizmet,
+    services,
+    supervisor.services
+  );
 
   return (
     <SupervisorProfileClient

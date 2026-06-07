@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 import { DbEmptyNotice } from "@/components/site/DbEmptyNotice";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
+import { supervisorsListHref } from "@/lib/services/supervisor-filter";
 import type { Service } from "@/lib/types";
 
 export function HizmetlerPageClient({
@@ -64,7 +65,13 @@ export function HizmetlerPageClient({
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-auto flex items-center justify-end pt-8 border-t border-clinical-border">
+                      <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-8 border-t border-clinical-border">
+                        <Link
+                          href={supervisorsListHref(s)}
+                          className="btn-outline-navy py-2 px-6 text-xs"
+                        >
+                          Randevu Al
+                        </Link>
                         <Link href={`/hizmetler/${s.slug}`} className="btn-navy py-2 px-6">
                           Detaylar
                           <ArrowRight className="h-4 w-4" />

@@ -2,21 +2,17 @@
 
 
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowRight,
-  ArrowUpRight,
   CheckCircle2,
-  Star,
   Clock,
   ShieldCheck,
-  Video,
   Award,
-  Calendar,
 } from "lucide-react";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { BookingPanel } from "@/components/site/BookingPanel";
+import { supervisorsListHref } from "@/lib/services/supervisor-filter";
 import type { Service, Supervisor } from "@/lib/types";
 export function ServiceDetailClient({
   service,
@@ -28,6 +24,7 @@ export function ServiceDetailClient({
 }) {
   const isIndividual =
     service.slug === "bireysel-supervizyon" || service.id === "individual";
+  const supervisorsHref = supervisorsListHref(service);
 
   return (
     <>
@@ -78,7 +75,7 @@ export function ServiceDetailClient({
 
               <Reveal delay={0.5}>
                 <div className="mt-10">
-                  <Link href={isIndividual ? "#takvim" : "/supervizorler"} className="btn-white">
+                  <Link href={supervisorsHref} className="btn-white">
                     Hemen Randevu Al
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -123,21 +120,17 @@ export function ServiceDetailClient({
 
             <div className="lg:col-span-5">
               <div id="randevu" className="sticky top-32">
-                {isIndividual && featuredSupervisor ? (
-                  <FeaturedSupervisorCard supervisor={featuredSupervisor} serviceDuration={service.duration} />
-                ) : (
-                  <div className="card-premium">
-                    <h3 className="h3-premium mb-6">Randevu Oluştur</h3>
-                    <p className="text-clinical-muted text-sm mb-8">
-                      Süpervizör listemizden size en uygun uzmanı seçerek randevunuzu 
-                      hemen planlayabilirsiniz.
-                    </p>
-                    <Link href="/supervizorler" className="btn-navy w-full">
-                      Süpervizörleri Listele
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                )}
+                <div className="card-premium">
+                  <h3 className="h3-premium mb-6">Randevu Oluştur</h3>
+                  <p className="text-clinical-muted text-sm mb-8">
+                    {service.name} hizmeti veren süpervizörler arasından size en uygun uzmanı
+                    seçerek randevunuzu hemen planlayabilirsiniz.
+                  </p>
+                  <Link href={supervisorsHref} className="btn-navy w-full">
+                    Hemen Randevu Al
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -157,8 +150,12 @@ export function ServiceDetailClient({
               </Reveal>
               <Reveal delay={0.2}>
                 <p className="mt-4 text-clinical-muted">
-                  {featuredSupervisor.fullName} ile bireysel süpervizyon randevunuzu 
-                  aşağıdan oluşturabilirsiniz.
+                  {featuredSupervisor.fullName} ile bireysel süpervizyon randevunuzu aşağıdan
+                  oluşturabilirsiniz. Tüm süpervizörleri görmek için{" "}
+                  <Link href={supervisorsHref} className="font-semibold text-navy-900 underline">
+                    listeyi filtreleyin
+                  </Link>
+                  .
                 </p>
               </Reveal>
             </div>
@@ -186,42 +183,6 @@ function Step({ number, title, desc }: { number: string; title: string; desc: st
       <div>
         <h4 className="font-bold text-navy-900 mb-1">{title}</h4>
         <p className="text-sm text-clinical-muted">{desc}</p>
-      </div>
-    </div>
-  );
-}
-
-function FeaturedSupervisorCard({
-  supervisor,
-  serviceDuration,
-}: {
-  supervisor: Supervisor;
-  serviceDuration: number;
-}) {
-  return (
-    <div className="card-premium card-flat-hover p-0 overflow-hidden shadow-2xl">
-      <div className="relative h-44 sm:h-auto sm:aspect-square">
-        <Image src={supervisor.photo} alt={supervisor.fullName} fill className="object-cover" />
-        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-navy-900 flex items-center gap-1">
-          <Star className="h-3 w-3 text-accent-gold fill-accent-gold" />
-          {supervisor.rating}
-        </div>
-      </div>
-      <div className="p-5 sm:p-8">
-        <div className="text-xs font-bold text-accent-gold uppercase tracking-widest mb-2">{supervisor.title}</div>
-        <h3 className="h3-premium mb-4 sm:mb-6">{supervisor.fullName}</h3>
-
-        <div className="mb-6 space-y-3 sm:mb-8 sm:space-y-4">
-          <div className="flex justify-between border-b border-clinical-border pb-3 text-sm sm:pb-4">
-            <span className="text-clinical-muted">Seans Süresi</span>
-            <span className="font-bold text-navy-900">{serviceDuration} Dakika</span>
-          </div>
-        </div>
-
-        <Link href={`/supervizorler/${supervisor.id}`} className="btn-navy w-full">
-          Profili İncele
-          <ArrowUpRight className="h-4 w-4" />
-        </Link>
       </div>
     </div>
   );

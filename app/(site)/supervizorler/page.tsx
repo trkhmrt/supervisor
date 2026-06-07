@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { safeGetActiveServices, safeGetSupervisors } from "@/lib/db/queries";
 import { SupervisorsPageClient } from "./SupervisorsPageClient";
 
@@ -10,10 +11,12 @@ export default async function SupervisorsPage() {
   ]);
 
   return (
-    <SupervisorsPageClient
-      supervisors={supervisors}
-      services={services}
-      fetchError={error}
-    />
+    <Suspense fallback={null}>
+      <SupervisorsPageClient
+        supervisors={supervisors}
+        services={services}
+        fetchError={error}
+      />
+    </Suspense>
   );
 }
