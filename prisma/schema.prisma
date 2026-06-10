@@ -297,6 +297,7 @@ model Author {
   supervisorId String?     @unique
   supervisor   Supervisor? @relation(fields: [supervisorId], references: [id], onDelete: SetNull)
   posts        BlogPost[]
+  founderContent Json?
   createdAt    DateTime    @default(now())
 }
 

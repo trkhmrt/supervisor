@@ -4,6 +4,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { BLOG_POSTS, SERVICES, SUPERVISORS } from "../lib/mockData";
+import { DEFAULT_FOUNDER_PROFILE } from "../lib/content/founder-profile";
 import { ensureDefaultAvailabilitySlots } from "../lib/db/availability";
 
 const prisma = new PrismaClient();
@@ -93,11 +94,13 @@ async function seedBlogPosts() {
         "Klinik psikoloji alanında bireysel ve grup süpervizyonu hizmetleri sunuyorum. Çalışmalarımı bütüncül bir yaklaşımla, danışan ve süpervizyon alanın özgün ihtiyaçlarına göre şekillendiriyorum.",
       photo: "/images/abdullatif.png",
       supervisorId: abdullatif?.id ?? null,
+      founderContent: DEFAULT_FOUNDER_PROFILE,
     },
     update: {
       fullName: "Abdullatif Ramazan Çelik",
       title: "Psikolog",
       supervisorId: abdullatif?.id ?? null,
+      founderContent: DEFAULT_FOUNDER_PROFILE,
     },
   });
 

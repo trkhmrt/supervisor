@@ -135,6 +135,48 @@ export const SERVICES: Service[] = [
     active: true,
     isGroupService: false,
   },
+  {
+    id: "egitim",
+    slug: "egitim",
+    name: "Eğitim",
+    shortDescription:
+      "Yapılandırılmış mesleki eğitim programları ve atölye çalışmaları.",
+    description:
+      "Ruh sağlığı profesyonelleri için tasarlanmış eğitim programları, vaka temelli atölyeler ve süpervizyon öncesi/sonrası destekleyici eğitim modülleri. Teorik bilgiyi uygulamayla buluşturan interaktif öğrenme deneyimleri sunar.",
+    features: [
+      "Konuya özel eğitim modülleri",
+      "Canlı ve kayıtlı oturum seçenekleri",
+      "Vaka temelli atölye çalışmaları",
+      "Sertifika ve katılım belgesi",
+      "Online interaktif format",
+    ],
+    icon: "graduation",
+    price: 0,
+    duration: 120,
+    active: true,
+    isGroupService: true,
+  },
+  {
+    id: "psikoegitim",
+    slug: "psikoegitim",
+    name: "Psikoeğitim",
+    shortDescription:
+      "Danışan ve profesyonellere yönelik psikoeğitim oturumları.",
+    description:
+      "Belirli konularda bilgilendirme, farkındalık geliştirme ve beceri kazandırmaya odaklanan psikoeğitim oturumları. Bireysel veya grup formatında, yapılandırılmış içerik ve uygulamalı egzersizlerle sunulur.",
+    features: [
+      "Konuya özel psikoeğitim içerikleri",
+      "Bireysel veya grup oturumları",
+      "Uygulamalı egzersizler",
+      "Destekleyici materyaller",
+      "Online erişim",
+    ],
+    icon: "book",
+    price: 0,
+    duration: 60,
+    active: true,
+    isGroupService: true,
+  },
 ];
 
 export const SUPERVISORS: Supervisor[] = [

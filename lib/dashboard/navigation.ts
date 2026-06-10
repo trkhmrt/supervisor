@@ -16,6 +16,7 @@ export type DashboardNavId =
   | "blog"
   | "ads"
   | "site-content"
+  | "founder-profile"
   | "messages"
   | "members"
   | "admins"
@@ -100,6 +101,12 @@ export const DASHBOARD_NAV_ADMIN: DashboardNavItem[] = [
     id: "site-content",
     href: `${DASHBOARD_BASE}/site-icerik`,
     label: "Site İçerik",
+    scope: SCOPES.SETTINGS_UPDATE,
+  },
+  {
+    id: "founder-profile",
+    href: `${DASHBOARD_BASE}/kurucu-sayfasi`,
+    label: "Kurucu Sayfası",
     scope: SCOPES.SETTINGS_UPDATE,
   },
   {

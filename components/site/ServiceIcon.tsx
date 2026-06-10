@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Users, Handshake, Drama } from "lucide-react";
+import { User, Users, Handshake, Drama, BookOpen, GraduationCap } from "lucide-react";
 
 export function ServiceIcon({ icon, className }: { icon: string; className?: string }) {
   const map: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -8,6 +8,8 @@ export function ServiceIcon({ icon, className }: { icon: string; className?: str
     users: Users,
     handshake: Handshake,
     stage: Drama,
+    book: BookOpen,
+    graduation: GraduationCap,
   };
   const C = map[icon] ?? User;
   return <C className={className} />;

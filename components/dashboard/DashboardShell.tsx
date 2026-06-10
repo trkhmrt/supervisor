@@ -28,6 +28,7 @@ import {
   Users,
   BarChart3,
   Activity,
+  UserCircle,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { ProfileCompletionBanner } from "@/components/auth/ProfileCompletionBanner";
@@ -52,6 +53,7 @@ const NAV_ICONS: Record<DashboardNavId, LucideIcon> = {
   blog: Newspaper,
   ads: Megaphone,
   "site-content": FileText,
+  "founder-profile": UserCircle,
   messages: MessageSquare,
   members: Users,
   admins: Shield,
