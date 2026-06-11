@@ -537,7 +537,7 @@ function BlogPostsSection({
 }: {
   author: Author;
   posts: BlogPost[];
-  sliderRef: React.RefObject<HTMLDivElement | null>;
+  sliderRef: React.RefObject<HTMLDivElement>;
   scrollSlider: (dir: "left" | "right") => void;
   title: string;
   eyebrow: string;

@@ -13,10 +13,9 @@ export const POST = withAuth(async (req, auth) => {
   try {
     const formData = await req.formData();
     const file = formData.get("file");
+    const supervisorIdRaw = formData.get("supervisorId");
     const supervisorId =
-      typeof formData.get("supervisorId") === "string"
-        ? formData.get("supervisorId")!.trim()
-        : "";
+      typeof supervisorIdRaw === "string" ? supervisorIdRaw.trim() : "";
 
     if (!(file instanceof File) || !supervisorId) {
       return NextResponse.json(

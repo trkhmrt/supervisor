@@ -136,7 +136,16 @@ export function ServiceEditView({ serviceId }: { serviceId: string }) {
           <h2 className="text-sm font-bold uppercase tracking-widest text-navy-900">Hizmet bilgileri</h2>
         </div>
         <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
-          <ServiceFormFields form={form} setForm={setForm} showActive />
+          <ServiceFormFields
+            form={form}
+            setForm={(next) =>
+              setForm((prev) => {
+                if (!prev) return prev;
+                return typeof next === "function" ? next(prev) : next;
+              })
+            }
+            showActive
+          />
           <div className="md:col-span-2 flex gap-2">
             <button type="submit" disabled={saving} className="btn-navy py-2 px-6 text-xs">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Değişiklikleri Kaydet"}
